@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import cairosvg; print\\('cairosvg ok'\\)\")",
+      "Bash(node -e \"require\\('sharp'\\); console.log\\('sharp ok'\\)\")",
+      "Bash(npm list *)",
+      "Bash(python3 -c \"from PIL import Image; print\\('PIL ok'\\)\")",
+      "Bash(sips --help)",
+      "Bash(sips --formats)",
+      "Bash(pip3 install *)",
+      "Bash(sips -z 240 880 logo.svg --out logo.png)",
+      "Bash(qlmanage -t -s 880 -o /tmp/ logo.svg logo-icon.svg)",
+      "Bash(ls /tmp/logo*.png)",
+      "Bash(cp /tmp/logo.svg.png /Users/grtsnx/programming/nextjs/chatmixosuper/public/images/logo.png)",
+      "Bash(cp /tmp/logo-icon.svg.png /Users/grtsnx/programming/nextjs/chatmixosuper/public/images/logo-icon.png)",
+      "Bash(sips -g pixelWidth -g pixelHeight logo.png logo-icon.png)",
+      "Bash(rsvg-convert /tmp/chatmixo-concepts.svg -w 1800 -o /tmp/chatmixo-concepts.png)",
+      "Bash(rsvg-convert /tmp/chatmixo-drift.svg -w 1800 -o /tmp/chatmixo-drift.png)",
+      "Bash(rsvg-convert /tmp/chatmixo-drift-v2.svg -w 1800 -o /tmp/chatmixo-drift-v2.png)",
+      "Bash(rsvg-convert /Users/grtsnx/programming/nextjs/chatmixosuper/public/images/_preview.svg -w 1800 -o /Users/grtsnx/programming/nextjs/chatmixosuper/public/images/_preview.png)",
+      "Bash(rsvg-convert logo.svg -w 720 -h 240 -o logo.png)",
+      "Bash(rsvg-convert /tmp/favicon-source.svg -w 256 -h 256 -o /tmp/favicon-256.png)",
+      "Bash(sips -s format ico /tmp/favicon-256.png --out favicon.ico)"
+    ],
+    "additionalDirectories": [
+      "/tmp",
+      "/private/tmp"
+    ]
+  }
+}

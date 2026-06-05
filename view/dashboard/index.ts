@@ -1,3 +1,5 @@
-import DashboardView from "./dashboardView"
-
-export { DashboardView }
+export { default as DashboardView } from "./dashboardView"
+export { default as LinksView } from "./linksView"
+export { default as DeviceDetailView } from "./deviceDetailView"
+export { default as SessionsView } from "./sessionsView"
+export { default as SessionView } from "./sessionView"

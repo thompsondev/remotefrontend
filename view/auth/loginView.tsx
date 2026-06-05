@@ -1,59 +1,77 @@
 "use client"
 
 import { useState } from "react"
-import { cn } from "@/lib"
+import { useRouter } from "next/navigation"
+import { cn } from "@/lib/utils"
 import { Button, Input } from "@heroui/react"
-import { FaEye, FaEyeSlash, FaGithub } from "react-icons/fa"
-import { FcGoogle } from "react-icons/fc"
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-  FieldSeparator,
-} from "@/components/ui/field"
+import { FaEye, FaEyeSlash } from "react-icons/fa"
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import Link from "next/link"
+import { apiFetch, setAdminToken } from "@/lib/api"
+import { showNotification } from "@/lib/showNotification"
 
 const LoginView = ({ className, ...props }: React.ComponentProps<"div">) => {
+  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const result = await apiFetch<{ token: string }>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      })
+      setAdminToken(result.token)
+      showNotification({ type: "success", message: "Welcome back" })
+      router.push("/dashboard")
+    } catch (err) {
+      showNotification({
+        type: "error",
+        message: err instanceof Error ? err.message : "Login failed",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <div className="bg-background p-1.5 py-8">
         <div className="pb-5">
-          <h1 className="pb-2 text-2xl font-semibold">Welcome back 👋 </h1>
+          <h1 className="pb-2 text-2xl font-semibold">Welcome back</h1>
           <p className="text-sm font-medium text-muted-foreground">
-            sign-in to continue to your dashboard
+            Sign in to the remote admin dashboard
           </p>
         </div>
         <div className="pt-3">
-          <form>
+          <form onSubmit={handleSubmit}>
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="m@example.com"
+                  placeholder="admin@localhost"
                   className="h-9 w-full rounded-md"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </Field>
               <Field>
-                <div className="flex">
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <Link
-                    href="/auth/forgot"
-                    className="ml-auto text-sm text-muted-foreground underline-offset-4"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
+                <FieldLabel htmlFor="password">Password</FieldLabel>
                 <div className="relative w-full">
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="********"
                     className="h-9 w-full rounded-md pr-9"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     required
                   />
                   <button
@@ -76,32 +94,13 @@ const LoginView = ({ className, ...props }: React.ComponentProps<"div">) => {
                 <Button
                   type="submit"
                   className="rounded-md bg-black text-white hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90"
+                  isDisabled={loading}
                 >
-                  Login
-                </Button>
-              </Field>
-              <FieldSeparator>or</FieldSeparator>
-              <Field className="pt-4">
-                <Button variant="outline" type="button" className="rounded-md">
-                  <FcGoogle className="size-4" aria-hidden="true" />
-                  Continue with Google
-                </Button>
-                <Button variant="outline" type="button" className="rounded-md">
-                  <FaGithub
-                    className="size-4 text-black dark:text-white"
-                    aria-hidden="true"
-                  />
-                  Continue with GitHub
+                  {loading ? "Signing in..." : "Login"}
                 </Button>
               </Field>
               <p className="pt-2 text-center text-sm text-muted-foreground">
-                Don&apos;t have an account?{" "}
-                <Link
-                  href="/auth/signup"
-                  className="font-medium text-foreground no-underline hover:text-primary"
-                >
-                  Sign up
-                </Link>
+                Default: admin@localhost / admin123
               </p>
             </FieldGroup>
           </form>

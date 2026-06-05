@@ -2,6 +2,7 @@ import { Geist, Geist_Mono, Manrope } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { QueryProvider } from "@/components/query-provider"
 import { cn } from "@/lib"
 import { Metadata, Viewport } from "next"
 import { Toaster } from "sonner"
@@ -62,7 +63,9 @@ export default function RootLayout({
       )}
     >
       <body className="scroll-smooth bg-background">
-        <ThemeProvider>{children}</ThemeProvider>
+        <QueryProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </QueryProvider>
         <Toaster position="top-right" richColors expand={false} />
       </body>
     </html>

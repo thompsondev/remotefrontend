@@ -51,7 +51,7 @@ const LoginView = ({ className, ...props }: React.ComponentProps<"div">) => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@localhost"
+                  placeholder="admin@example.com"
                   className="h-9 w-full rounded-md"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -96,7 +96,7 @@ const LoginView = ({ className, ...props }: React.ComponentProps<"div">) => {
                 </Button>
               </Field>
               <p className="pt-2 text-center text-sm text-muted-foreground">
-                Default: admin@localhost / admin123
+                Default: admin@example.com / admin123
               </p>
             </FieldGroup>
           </form>

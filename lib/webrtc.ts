@@ -6,6 +6,6 @@ export const ICE_SERVERS: RTCIceServer[] = [
 export function getWsUrl() {
   return (
     process.env.NEXT_PUBLIC_WS_URL?.replace(/\/$/, "") ||
-    "http://localhost:3001"
+    "http://localhost:3000"
   )
 }

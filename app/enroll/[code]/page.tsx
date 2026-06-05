@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
-  "http://localhost:3001/v1"
+  "http://localhost:3000/v1"
 
 export default function EnrollPage() {
   const params = useParams()

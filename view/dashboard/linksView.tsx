@@ -67,7 +67,7 @@ export default function LinksView() {
           const expired = new Date(link.expiresAt) < new Date()
           const baseUrl =
             process.env.NEXT_PUBLIC_ENROLL_BASE_URL ||
-            "http://localhost:3000/enroll"
+            "http://localhost:3001/enroll"
           const url = link.url || `${baseUrl}/${link.code}`
           return (
             <div

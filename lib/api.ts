@@ -60,6 +60,51 @@ export async function apiFetch<T>(
   return res.json() as Promise<T>
 }
 
+/** POST /auth/login */
+export type LoginRequest = {
+  email: string
+  password: string
+}
+
+/** POST /auth/login — 200 */
+export type LoginResponse = {
+  token: string
+  admin: AdminSummary
+}
+
+export type AdminSummary = {
+  id: string
+  email: string
+  role: string
+}
+
+/** GET /auth/me — 200 */
+export type AdminProfile = AdminSummary & {
+  createdAt: string
+}
+
+/** POST /auth/logout — 200 */
+export type LogoutResponse = {
+  success: boolean
+}
+
+export async function loginAdmin(
+  body: LoginRequest,
+): Promise<LoginResponse> {
+  return apiFetch<LoginResponse>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function getAdminProfile(): Promise<AdminProfile> {
+  return apiFetch<AdminProfile>("/auth/me")
+}
+
+export async function logoutAdmin(): Promise<LogoutResponse> {
+  return apiFetch<LogoutResponse>("/auth/logout", { method: "POST" })
+}
+
 export type Device = {
   id: string
   name: string

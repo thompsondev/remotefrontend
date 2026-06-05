@@ -7,7 +7,7 @@ import { Button, Input } from "@heroui/react"
 import { FaEye, FaEyeSlash } from "react-icons/fa"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import Link from "next/link"
-import { apiFetch, setAdminToken } from "@/lib/api"
+import { loginAdmin, setAdminToken } from "@/lib/api"
 import { showNotification } from "@/lib/showNotification"
 
 const LoginView = ({ className, ...props }: React.ComponentProps<"div">) => {
@@ -21,10 +21,7 @@ const LoginView = ({ className, ...props }: React.ComponentProps<"div">) => {
     e.preventDefault()
     setLoading(true)
     try {
-      const result = await apiFetch<{ token: string }>("/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      })
+      const result = await loginAdmin({ email, password })
       setAdminToken(result.token)
       showNotification({ type: "success", message: "Welcome back" })
       router.push("/dashboard")
@@ -55,7 +52,7 @@ const LoginView = ({ className, ...props }: React.ComponentProps<"div">) => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@localhost"
+                  placeholder="admin@example.com"
                   className="h-9 w-full rounded-md"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -100,7 +97,7 @@ const LoginView = ({ className, ...props }: React.ComponentProps<"div">) => {
                 </Button>
               </Field>
               <p className="pt-2 text-center text-sm text-muted-foreground">
-                Default: admin@localhost / admin123
+                Default: admin@example.com / admin123
               </p>
             </FieldGroup>
           </form>

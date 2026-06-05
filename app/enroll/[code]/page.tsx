@@ -63,7 +63,9 @@ export default function EnrollPage() {
           </p>
         </div>
         <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
-          <li>Download and run the Remote Agent installer</li>
+          <li>
+            Download the Remote Agent zip, extract it, and run Remote Agent.exe
+          </li>
           <li>
             When prompted, paste this enrollment code:{" "}
             <code className="rounded bg-muted px-1 font-mono text-foreground">

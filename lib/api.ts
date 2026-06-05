@@ -1,6 +1,6 @@
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
-  "http://localhost:3001/v1"
+  "http://localhost:3000/v1"
 
 export function getAdminToken(): string | null {
   if (typeof window === "undefined") return null

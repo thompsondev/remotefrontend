@@ -88,9 +88,7 @@ export type LogoutResponse = {
   success: boolean
 }
 
-export async function loginAdmin(
-  body: LoginRequest,
-): Promise<LoginResponse> {
+export async function loginAdmin(body: LoginRequest): Promise<LoginResponse> {
   return apiFetch<LoginResponse>("/auth/login", {
     method: "POST",
     body: JSON.stringify(body),

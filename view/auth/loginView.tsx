@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils"
 import { Button, Input } from "@heroui/react"
 import { FaEye, FaEyeSlash } from "react-icons/fa"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
-import Link from "next/link"
 import { loginAdmin, setAdminToken } from "@/lib/api"
 import { showNotification } from "@/lib/showNotification"
 
@@ -52,7 +51,7 @@ const LoginView = ({ className, ...props }: React.ComponentProps<"div">) => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@example.com"
+                  placeholder="admin@localhost"
                   className="h-9 w-full rounded-md"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -97,7 +96,7 @@ const LoginView = ({ className, ...props }: React.ComponentProps<"div">) => {
                 </Button>
               </Field>
               <p className="pt-2 text-center text-sm text-muted-foreground">
-                Default: admin@example.com / admin123
+                Default: admin@localhost / admin123
               </p>
             </FieldGroup>
           </form>

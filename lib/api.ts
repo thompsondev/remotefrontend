@@ -115,6 +115,15 @@ export type Device = {
   enrolledAt: string
 }
 
+export type EnrollmentLinkStats = {
+  openCount: number
+  uniqueOpenCount: number
+  downloadCount: number
+  uniqueDownloadCount: number
+  lastOpenedAt: string | null
+  lastDownloadAt: string | null
+}
+
 export type EnrollmentLink = {
   id: string
   code: string
@@ -122,6 +131,7 @@ export type EnrollmentLink = {
   expiresAt: string
   usedAt: string | null
   createdAt: string
+  stats?: EnrollmentLinkStats
   device?: { id: string; name: string; hostname: string; status: string } | null
 }
 

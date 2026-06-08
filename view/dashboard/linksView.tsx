@@ -78,14 +78,26 @@ export default function LinksView() {
                 <p className="font-mono text-sm">{url}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Expires {new Date(link.expiresAt).toLocaleString()}
+                  {link.stats
+                    ? ` · ${link.stats.uniqueOpenCount} opened · ${link.stats.uniqueDownloadCount} downloaded`
+                    : ""}
                   {used && link.device
-                    ? ` · Used by ${link.device.name}`
+                    ? ` · Enrolled as ${link.device.name}`
                     : used
-                      ? " · Used"
+                      ? " · Enrolled"
                       : expired
                         ? " · Expired"
                         : " · Active"}
                 </p>
+                {link.stats?.lastOpenedAt && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Last opened{" "}
+                    {new Date(link.stats.lastOpenedAt).toLocaleString()}
+                    {link.stats.lastDownloadAt
+                      ? ` · Last download ${new Date(link.stats.lastDownloadAt).toLocaleString()}`
+                      : ""}
+                  </p>
+                )}
               </div>
               <Button size="sm" variant="outline" onClick={() => copyUrl(url)}>
                 Copy

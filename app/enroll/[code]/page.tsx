@@ -9,6 +9,14 @@ const API_BASE =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
   "http://localhost:3000/v1"
 
+function buildDownloadUrl(code: string) {
+  const base =
+    process.env.NEXT_PUBLIC_AGENT_DOWNLOAD_URL || `${API_BASE}/agent/download`
+  const url = new URL(base, window.location.origin)
+  url.searchParams.set("code", code)
+  return url.toString()
+}
+
 export default function EnrollPage() {
   const params = useParams()
   const code = params.code as string
@@ -17,15 +25,20 @@ export default function EnrollPage() {
     reason?: string
     expiresAt?: string
   } | null>(null)
-
-  const downloadUrl =
-    process.env.NEXT_PUBLIC_AGENT_DOWNLOAD_URL ||
-    "remoteagent://enroll?code=" + code
+  const [downloadUrl, setDownloadUrl] = useState<string>("")
 
   useEffect(() => {
     fetch(`${API_BASE}/enrollment-links/${code}/validate`)
       .then((r) => r.json())
-      .then(setValidation)
+      .then((result) => {
+        setValidation(result)
+        if (result.valid) {
+          setDownloadUrl(buildDownloadUrl(code))
+          void fetch(`${API_BASE}/enrollment-links/${code}/track/open`, {
+            method: "POST",
+          })
+        }
+      })
       .catch(() => setValidation({ valid: false, reason: "error" }))
   }, [code])
 
@@ -76,7 +89,14 @@ export default function EnrollPage() {
         </ol>
         <div className="flex flex-col gap-3">
           <Button asChild>
-            <a href={downloadUrl}>Download Windows Agent</a>
+            <a href={downloadUrl || buildDownloadUrl(code)}>
+              Download Windows Agent
+            </a>
+          </Button>
+          <Button asChild variant="outline">
+            <a href={`remoteagent://enroll?code=${code}`}>
+              Open in Remote Agent (if already installed)
+            </a>
           </Button>
           <p className="text-xs text-muted-foreground">
             Expires{" "}

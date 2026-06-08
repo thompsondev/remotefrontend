@@ -124,6 +124,8 @@ export type EnrollmentLinkStats = {
   lastDownloadAt: string | null
 }
 
+export type EnrollmentLinkStatus = "active" | "expired" | "used"
+
 export type EnrollmentLink = {
   id: string
   code: string
@@ -131,8 +133,41 @@ export type EnrollmentLink = {
   expiresAt: string
   usedAt: string | null
   createdAt: string
+  status?: EnrollmentLinkStatus
   stats?: EnrollmentLinkStats
   device?: { id: string; name: string; hostname: string; status: string } | null
+}
+
+export type DeleteEnrollmentLinksResponse = {
+  success: boolean
+  deletedCount?: number
+  deletedId?: string
+}
+
+export async function deleteEnrollmentLink(
+  id: string
+): Promise<DeleteEnrollmentLinksResponse> {
+  return apiFetch<DeleteEnrollmentLinksResponse>(`/enrollment-links/${id}`, {
+    method: "DELETE",
+  })
+}
+
+export async function deleteEnrollmentLinks(
+  ids: string[]
+): Promise<DeleteEnrollmentLinksResponse> {
+  return apiFetch<DeleteEnrollmentLinksResponse>(
+    "/enrollment-links/bulk-delete",
+    {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }
+  )
+}
+
+export async function deleteExpiredEnrollmentLinks(): Promise<DeleteEnrollmentLinksResponse> {
+  return apiFetch<DeleteEnrollmentLinksResponse>("/enrollment-links/expired", {
+    method: "DELETE",
+  })
 }
 
 export type RemoteSession = {

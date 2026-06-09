@@ -356,7 +356,7 @@ export default function LinksView() {
                   <p className="mt-1 text-xs text-muted-foreground">
                     Expires {new Date(link.expiresAt).toLocaleString()}
                     {link.stats
-                      ? ` · ${link.stats.uniqueOpenCount} opened · ${link.stats.uniqueDownloadCount} downloaded`
+                      ? ` · ${link.stats.uniqueOpenCount} opened · ${link.stats.uniqueConnectCount} connected · ${link.stats.uniqueDownloadCount} downloaded`
                       : ""}
                     {status === "used" && link.device
                       ? ` · ${link.device.deviceType === "BROWSER" ? "Instant" : "Agent"}: ${link.device.name}`
@@ -372,15 +372,19 @@ export default function LinksView() {
                       Agent: {agentUrl}
                     </p>
                   )}
-                  {link.stats?.lastOpenedAt && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Last opened{" "}
-                      {new Date(link.stats.lastOpenedAt).toLocaleString()}
-                      {link.stats.lastDownloadAt
-                        ? ` · Last download ${new Date(link.stats.lastDownloadAt).toLocaleString()}`
-                        : ""}
-                    </p>
-                  )}
+                  {link.stats != null &&
+                    (link.stats.lastOpenedAt != null ||
+                      link.stats.lastConnectedAt != null ||
+                      link.stats.lastDownloadAt != null) && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {link.stats.lastOpenedAt != null &&
+                          `Last opened ${new Date(link.stats.lastOpenedAt).toLocaleString()}`}
+                        {link.stats.lastConnectedAt != null &&
+                          `${link.stats.lastOpenedAt != null ? " · " : ""}Last connected ${new Date(link.stats.lastConnectedAt).toLocaleString()}`}
+                        {link.stats.lastDownloadAt != null &&
+                          `${link.stats.lastOpenedAt != null || link.stats.lastConnectedAt != null ? " · " : ""}Last download ${new Date(link.stats.lastDownloadAt).toLocaleString()}`}
+                      </p>
+                    )}
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">

@@ -123,9 +123,12 @@ export type EnrollmentLinkKind = "AGENT" | "INSTANT" | "BOTH"
 export type EnrollmentLinkStats = {
   openCount: number
   uniqueOpenCount: number
+  connectCount: number
+  uniqueConnectCount: number
   downloadCount: number
   uniqueDownloadCount: number
   lastOpenedAt: string | null
+  lastConnectedAt: string | null
   lastDownloadAt: string | null
 }
 
@@ -152,9 +155,7 @@ export type EnrollmentLink = {
   } | null
 }
 
-export async function createEnrollmentLink(
-  kind: EnrollmentLinkKind = "INSTANT"
-) {
+export async function createEnrollmentLink(kind: EnrollmentLinkKind = "BOTH") {
   return apiFetch<EnrollmentLink>("/enrollment-links", {
     method: "POST",
     body: JSON.stringify({ kind }),

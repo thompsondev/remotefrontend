@@ -101,28 +101,9 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
     }
   }, [])
 
-  const handleReconnect = async () => {
-    setError(undefined)
-    const creds = loadBrowserCredentials(code)
-    if (!creds) {
-      setError("Session expired. Please ask for a new link.")
-      return
-    }
-    try {
-      const agent = initAgent(true)
-      if (!agent) return
-      await agent.reconnectWithScreenShare()
-      setStarted(true)
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Could not resume your session"
-      )
-      setStatus("error")
-    }
-  }
-
   const handleStart = async () => {
     setError(undefined)
+    clearBrowserCredentials(code)
     try {
       const agent = initAgent()
       if (!agent) return
@@ -244,23 +225,13 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
         )}
 
         <div className="space-y-3">
-          {!started && !validation.reconnect && (
+          {!started && (
             <Button
               className="w-full"
               size="lg"
               onClick={() => void handleStart()}
             >
               Share my screen
-            </Button>
-          )}
-
-          {!started && validation.reconnect && (
-            <Button
-              className="w-full"
-              size="lg"
-              onClick={() => void handleReconnect()}
-            >
-              Continue & share screen
             </Button>
           )}
 
@@ -274,7 +245,7 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
             </Button>
           )}
 
-          {(started || validation.reconnect) && (
+          {started && (
             <Button className="w-full" variant="outline" onClick={handleEnd}>
               End session
             </Button>
@@ -285,11 +256,7 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
           <li>• Works in Chrome, Edge, and Firefox on desktop</li>
           <li>• You choose which screen or window to share</li>
           <li>• No software installation needed</li>
-          {validation.expiresAt && (
-            <li>
-              • Link expires {new Date(validation.expiresAt).toLocaleString()}
-            </li>
-          )}
+          <li>• This link can be used by anyone, anytime</li>
         </ul>
       </Card>
     </div>

@@ -50,7 +50,16 @@ export function clearBrowserCredentials(code: string) {
 
 export function detectBrowserInfo() {
   if (typeof navigator === "undefined") {
-    return { name: "Browser Session", hostname: "browser", os: "Web Browser" }
+    return {
+      name: "Browser Session",
+      hostname: "browser",
+      os: "Web Browser",
+      browser: "Web Browser",
+      userAgent: "",
+      timezone: "",
+      language: "",
+      screenResolution: "",
+    }
   }
   const ua = navigator.userAgent
   const platform =
@@ -68,6 +77,11 @@ export function detectBrowserInfo() {
     name: `${browser} Session`,
     hostname: window.location.hostname || "browser",
     os: platform,
+    browser,
+    userAgent: ua,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    language: navigator.language,
+    screenResolution: `${window.screen.width}x${window.screen.height}`,
   }
 }
 

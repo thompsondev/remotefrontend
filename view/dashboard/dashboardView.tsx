@@ -5,7 +5,12 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { apiFetch, type Device, type DeviceType } from "@/lib/api"
+import {
+  apiFetch,
+  formatDeviceLocation,
+  type Device,
+  type DeviceType,
+} from "@/lib/api"
 import { showNotification } from "@/lib/showNotification"
 
 function formatLastSeen(value: string | null) {
@@ -84,7 +89,7 @@ export default function DashboardView() {
         <div>
           <h1 className="text-2xl font-semibold">Devices</h1>
           <p className="text-sm text-muted-foreground">
-            Instant browser sessions and installed agents
+            Everyone who connects via your enrollment links appears here
           </p>
         </div>
         <Button asChild>
@@ -94,13 +99,15 @@ export default function DashboardView() {
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
+          <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="border-b bg-muted/40 text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Type</th>
-                <th className="px-4 py-3 font-medium">Hostname</th>
+                <th className="px-4 py-3 font-medium">Browser</th>
                 <th className="px-4 py-3 font-medium">OS</th>
+                <th className="px-4 py-3 font-medium">IP address</th>
+                <th className="px-4 py-3 font-medium">Location</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Last seen</th>
                 <th className="px-4 py-3 font-medium">Actions</th>
@@ -110,7 +117,7 @@ export default function DashboardView() {
               {isLoading && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={9}
                     className="px-4 py-8 text-center text-muted-foreground"
                   >
                     Loading devices...
@@ -120,7 +127,7 @@ export default function DashboardView() {
               {!isLoading && devices.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={9}
                     className="px-4 py-8 text-center text-muted-foreground"
                   >
                     No devices yet. Generate an instant connect link to get
@@ -136,8 +143,16 @@ export default function DashboardView() {
                     <td className="px-4 py-3">
                       <DeviceTypeBadge type={device.deviceType} />
                     </td>
-                    <td className="px-4 py-3">{device.hostname}</td>
+                    <td className="px-4 py-3">
+                      {device.browser || device.hostname || "—"}
+                    </td>
                     <td className="px-4 py-3">{device.os}</td>
+                    <td className="px-4 py-3 font-mono text-xs">
+                      {device.ipAddress || "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {formatDeviceLocation(device)}
+                    </td>
                     <td className="px-4 py-3">
                       <StatusBadge online={online} />
                     </td>

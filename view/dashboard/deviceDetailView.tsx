@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { apiFetch, type Device } from "@/lib/api"
+import { apiFetch, formatDeviceLocation, type Device } from "@/lib/api"
 
 type DeviceDetail = Device & {
   sessions: Array<{
@@ -15,6 +15,25 @@ type DeviceDetail = Device & {
     endedAt: string | null
     createdAt: string
   }>
+}
+
+function DetailField({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string
+  value: string
+  mono?: boolean
+}) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={`font-medium ${mono ? "font-mono text-sm break-all" : ""}`}>
+        {value || "—"}
+      </p>
+    </div>
+  )
 }
 
 export default function DeviceDetailView() {
@@ -34,37 +53,66 @@ export default function DeviceDetailView() {
     return <p className="text-muted-foreground">Device not found</p>
   }
 
+  const online = device.isOnline ?? device.status === "ONLINE"
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button variant="outline" size="sm" asChild>
           <Link href="/dashboard">Back</Link>
         </Button>
-        <h1 className="text-2xl font-semibold">{device.name}</h1>
-      </div>
-
-      <Card className="grid gap-4 p-6 md:grid-cols-2">
         <div>
-          <p className="text-xs text-muted-foreground">Hostname</p>
-          <p className="font-medium">{device.hostname}</p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">OS</p>
-          <p className="font-medium">{device.os}</p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">IP address</p>
-          <p className="font-medium">{device.ipAddress || "—"}</p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Last seen</p>
-          <p className="font-medium">
-            {device.lastSeenAt
-              ? new Date(device.lastSeenAt).toLocaleString()
-              : "Never"}
+          <h1 className="text-2xl font-semibold">{device.name}</h1>
+          <p className="text-sm text-muted-foreground">
+            {device.deviceType === "BROWSER"
+              ? "Instant browser session"
+              : "Installed agent"}
+            {online ? " · Online" : " · Offline"}
           </p>
         </div>
+      </div>
+
+      <Card className="grid gap-4 p-6 md:grid-cols-2 lg:grid-cols-3">
+        <DetailField label="Hostname" value={device.hostname} />
+        <DetailField label="Operating system" value={device.os} />
+        <DetailField label="Browser" value={device.browser || "—"} />
+        <DetailField label="IP address" value={device.ipAddress || "—"} mono />
+        <DetailField label="Location" value={formatDeviceLocation(device)} />
+        <DetailField label="Timezone" value={device.timezone || "—"} />
+        <DetailField label="Language" value={device.language || "—"} />
+        <DetailField
+          label="Screen resolution"
+          value={device.screenResolution || "—"}
+        />
+        <DetailField
+          label="Enrolled"
+          value={new Date(device.enrolledAt).toLocaleString()}
+        />
+        <DetailField
+          label="Last seen"
+          value={
+            device.lastSeenAt
+              ? new Date(device.lastSeenAt).toLocaleString()
+              : "Never"
+          }
+        />
+        {device.enrollmentLink?.code && (
+          <DetailField
+            label="Enrollment link"
+            value={device.enrollmentLink.code}
+            mono
+          />
+        )}
       </Card>
+
+      {device.userAgent && (
+        <Card className="p-6">
+          <h2 className="mb-2 font-semibold">User agent</h2>
+          <p className="font-mono text-xs break-all text-muted-foreground">
+            {device.userAgent}
+          </p>
+        </Card>
+      )}
 
       <Card className="p-6">
         <h2 className="mb-4 font-semibold">Recent sessions</h2>

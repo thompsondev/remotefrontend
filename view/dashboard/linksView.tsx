@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import {
@@ -10,6 +11,7 @@ import {
   deleteEnrollmentLink,
   deleteEnrollmentLinks,
   deleteExpiredEnrollmentLinks,
+  formatDeviceLocation,
   type EnrollmentLink,
   type EnrollmentLinkKind,
   type EnrollmentLinkStatus,
@@ -21,8 +23,7 @@ type LinkFilter = "all" | EnrollmentLinkStatus
 
 function linkStatus(link: EnrollmentLink): EnrollmentLinkStatus {
   if (link.status) return link.status
-  if (link.usedAt) return "used"
-  if (new Date(link.expiresAt) < new Date()) return "expired"
+  if (link.expiresAt && new Date(link.expiresAt) < new Date()) return "expired"
   return "active"
 }
 
@@ -34,13 +35,10 @@ function StatusBadge({ status }: { status: EnrollmentLinkStatus }) {
         status === "active" &&
           "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
         status === "expired" &&
-          "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-        status === "used" && "bg-sky-500/15 text-sky-700 dark:text-sky-400"
+          "bg-amber-500/15 text-amber-700 dark:text-amber-400"
       )}
     >
-      {status === "used"
-        ? "Enrolled"
-        : status.charAt(0).toUpperCase() + status.slice(1)}
+      {status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
   )
 }
@@ -67,8 +65,9 @@ const LINK_KINDS: { value: EnrollmentLinkKind; label: string; hint: string }[] =
 export default function LinksView() {
   const queryClient = useQueryClient()
   const [filter, setFilter] = useState<LinkFilter>("all")
-  const [linkKind, setLinkKind] = useState<EnrollmentLinkKind>("INSTANT")
+  const [linkKind, setLinkKind] = useState<EnrollmentLinkKind>("BOTH")
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [expandedLinkId, setExpandedLinkId] = useState<string | null>(null)
 
   const { data: links = [], isLoading } = useQuery({
     queryKey: ["enrollment-links"],
@@ -214,7 +213,6 @@ export default function LinksView() {
     { key: "all", label: "All" },
     { key: "active", label: "Active" },
     { key: "expired", label: "Expired" },
-    { key: "used", label: "Enrolled" },
   ]
 
   return (
@@ -223,7 +221,7 @@ export default function LinksView() {
         <div>
           <h1 className="text-2xl font-semibold">Enrollment links</h1>
           <p className="text-sm text-muted-foreground">
-            Share instant connect links (v2) or agent install links (v1)
+            Permanent, reusable links — anyone can connect anytime
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -329,96 +327,159 @@ export default function LinksView() {
               : link.kind === "INSTANT"
                 ? instantUrl
                 : instantUrl
+          const deviceCount = link.deviceCount ?? link.devices?.length ?? 0
+          const isExpanded = expandedLinkId === link.id
+
           return (
             <div
               key={link.id}
-              className={cn(
-                "flex flex-wrap items-center justify-between gap-4 p-4",
-                status === "expired" && "bg-amber-500/5"
-              )}
+              className={cn("p-4", status === "expired" && "bg-amber-500/5")}
             >
-              <div className="flex min-w-0 flex-1 items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.has(link.id)}
-                  onChange={() => toggleSelected(link.id)}
-                  className="mt-1 size-4 rounded border-border"
-                  aria-label={`Select link ${link.code}`}
-                />
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <StatusBadge status={status} />
-                    {link.kind && (
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                        {link.kind === "INSTANT"
-                          ? "Instant"
-                          : link.kind === "AGENT"
-                            ? "Agent"
-                            : "Both"}
-                      </span>
-                    )}
-                    <p className="truncate font-mono text-sm">{primaryUrl}</p>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Expires {new Date(link.expiresAt).toLocaleString()}
-                    {link.stats
-                      ? ` · ${link.stats.uniqueOpenCount ?? 0} opened · ${link.stats.uniqueConnectCount ?? 0} connected · ${link.stats.uniqueDownloadCount ?? 0} downloaded`
-                      : ""}
-                    {status === "used" && link.device
-                      ? ` · ${link.device.deviceType === "BROWSER" ? "Instant" : "Agent"}: ${link.device.name}`
-                      : ""}
-                  </p>
-                  {link.kind !== "AGENT" && (
-                    <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
-                      Instant: {instantUrl}
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(link.id)}
+                    onChange={() => toggleSelected(link.id)}
+                    className="mt-1 size-4 rounded border-border"
+                    aria-label={`Select link ${link.code}`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge status={status} />
+                      {link.kind && (
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                          {link.kind === "INSTANT"
+                            ? "Instant"
+                            : link.kind === "AGENT"
+                              ? "Agent"
+                              : "Both"}
+                        </span>
+                      )}
+                      <p className="truncate font-mono text-sm">{primaryUrl}</p>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {link.expiresAt
+                        ? `Expires ${new Date(link.expiresAt).toLocaleString()}`
+                        : "Never expires"}
+                      {link.stats
+                        ? ` · ${link.stats.uniqueOpenCount ?? 0} opened · ${link.stats.uniqueConnectCount ?? 0} connected · ${link.stats.uniqueDownloadCount ?? 0} downloaded`
+                        : ""}
+                      {` · ${deviceCount} device${deviceCount === 1 ? "" : "s"} connected`}
                     </p>
-                  )}
-                  {link.kind !== "INSTANT" && (
-                    <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
-                      Agent: {agentUrl}
-                    </p>
-                  )}
-                  {link.stats != null &&
-                    (link.stats.lastOpenedAt != null ||
-                      link.stats.lastConnectedAt != null ||
-                      link.stats.lastDownloadAt != null) && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {link.stats.lastOpenedAt != null &&
-                          `Last opened ${new Date(link.stats.lastOpenedAt).toLocaleString()}`}
-                        {link.stats.lastConnectedAt != null &&
-                          `${link.stats.lastOpenedAt != null ? " · " : ""}Last connected ${new Date(link.stats.lastConnectedAt).toLocaleString()}`}
-                        {link.stats.lastDownloadAt != null &&
-                          `${link.stats.lastOpenedAt != null || link.stats.lastConnectedAt != null ? " · " : ""}Last download ${new Date(link.stats.lastDownloadAt).toLocaleString()}`}
+                    {link.kind !== "AGENT" && (
+                      <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                        Instant: {instantUrl}
                       </p>
                     )}
+                    {link.kind !== "INSTANT" && (
+                      <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                        Agent: {agentUrl}
+                      </p>
+                    )}
+                    {link.stats != null &&
+                      (link.stats.lastOpenedAt != null ||
+                        link.stats.lastConnectedAt != null ||
+                        link.stats.lastDownloadAt != null) && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {link.stats.lastOpenedAt != null &&
+                            `Last opened ${new Date(link.stats.lastOpenedAt).toLocaleString()}`}
+                          {link.stats.lastConnectedAt != null &&
+                            `${link.stats.lastOpenedAt != null ? " · " : ""}Last connected ${new Date(link.stats.lastConnectedAt).toLocaleString()}`}
+                          {link.stats.lastDownloadAt != null &&
+                            `${link.stats.lastOpenedAt != null || link.stats.lastConnectedAt != null ? " · " : ""}Last download ${new Date(link.stats.lastDownloadAt).toLocaleString()}`}
+                        </p>
+                      )}
+                  </div>
                 </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => copyUrl(primaryUrl)}
-                >
-                  Copy
-                </Button>
-                {link.kind === "BOTH" && (
+                <div className="flex flex-wrap gap-2">
+                  {deviceCount > 0 && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        setExpandedLinkId(isExpanded ? null : link.id)
+                      }
+                    >
+                      {isExpanded ? "Hide devices" : "View devices"}
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => copyUrl(agentUrl)}
+                    onClick={() => copyUrl(primaryUrl)}
                   >
-                    Copy agent
+                    Copy
                   </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  disabled={deleteOneMutation.isPending}
-                  onClick={() => confirmDelete(link.id)}
-                >
-                  Delete
-                </Button>
+                  {link.kind === "BOTH" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyUrl(agentUrl)}
+                    >
+                      Copy agent
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={deleteOneMutation.isPending}
+                    onClick={() => confirmDelete(link.id)}
+                  >
+                    Delete
+                  </Button>
+                </div>
               </div>
+
+              {isExpanded && link.devices && link.devices.length > 0 && (
+                <div className="mt-4 overflow-x-auto rounded-lg border bg-muted/20">
+                  <table className="w-full min-w-[900px] text-left text-xs">
+                    <thead className="border-b text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Name</th>
+                        <th className="px-3 py-2 font-medium">Browser</th>
+                        <th className="px-3 py-2 font-medium">OS</th>
+                        <th className="px-3 py-2 font-medium">IP</th>
+                        <th className="px-3 py-2 font-medium">Location</th>
+                        <th className="px-3 py-2 font-medium">Connected</th>
+                        <th className="px-3 py-2 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {link.devices.map((device) => (
+                        <tr key={device.id} className="border-b last:border-0">
+                          <td className="px-3 py-2 font-medium">
+                            {device.name}
+                          </td>
+                          <td className="px-3 py-2">{device.browser || "—"}</td>
+                          <td className="px-3 py-2">{device.os}</td>
+                          <td className="px-3 py-2 font-mono">
+                            {device.ipAddress || "—"}
+                          </td>
+                          <td className="px-3 py-2">
+                            {formatDeviceLocation(device)}
+                          </td>
+                          <td className="px-3 py-2">
+                            {new Date(device.enrolledAt).toLocaleString()}
+                          </td>
+                          <td className="px-3 py-2">
+                            <Button
+                              size="sm"
+                              variant="link"
+                              className="h-auto p-0"
+                              asChild
+                            >
+                              <Link href={`/dashboard/devices/${device.id}`}>
+                                Details
+                              </Link>
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )
         })}

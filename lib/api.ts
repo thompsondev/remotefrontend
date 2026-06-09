@@ -111,11 +111,31 @@ export type Device = {
   os: string
   hostname: string
   ipAddress: string | null
+  browser?: string | null
+  userAgent?: string | null
+  timezone?: string | null
+  language?: string | null
+  country?: string | null
+  city?: string | null
+  screenResolution?: string | null
   deviceType?: DeviceType
   status: "ONLINE" | "OFFLINE"
   isOnline?: boolean
   lastSeenAt: string | null
   enrolledAt: string
+  enrollmentLinkId?: string | null
+  enrollmentLink?: { id: string; code: string; createdAt: string } | null
+}
+
+export function formatDeviceLocation(device: {
+  city?: string | null
+  country?: string | null
+  timezone?: string | null
+}) {
+  if (device.city && device.country) return `${device.city}, ${device.country}`
+  if (device.country) return device.country
+  if (device.timezone) return device.timezone
+  return "—"
 }
 
 export type EnrollmentLinkKind = "AGENT" | "INSTANT" | "BOTH"
@@ -132,7 +152,27 @@ export type EnrollmentLinkStats = {
   lastDownloadAt: string | null
 }
 
-export type EnrollmentLinkStatus = "active" | "expired" | "used"
+export type EnrollmentLinkStatus = "active" | "expired"
+
+export type EnrollmentLinkDevice = {
+  id: string
+  name: string
+  hostname: string
+  os: string
+  browser?: string | null
+  ipAddress?: string | null
+  country?: string | null
+  city?: string | null
+  timezone?: string | null
+  language?: string | null
+  screenResolution?: string | null
+  userAgent?: string | null
+  status: string
+  deviceType?: DeviceType
+  enrolledAt: string
+  lastSeenAt?: string | null
+  revokedAt?: string | null
+}
 
 export type EnrollmentLink = {
   id: string
@@ -141,18 +181,12 @@ export type EnrollmentLink = {
   url?: string
   agentUrl?: string
   instantUrl?: string
-  expiresAt: string
-  usedAt: string | null
+  expiresAt: string | null
   createdAt: string
   status?: EnrollmentLinkStatus
+  deviceCount?: number
   stats?: EnrollmentLinkStats
-  device?: {
-    id: string
-    name: string
-    hostname: string
-    status: string
-    deviceType?: DeviceType
-  } | null
+  devices?: EnrollmentLinkDevice[]
 }
 
 export async function createEnrollmentLink(kind: EnrollmentLinkKind = "BOTH") {

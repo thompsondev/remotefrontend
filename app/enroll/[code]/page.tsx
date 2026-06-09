@@ -23,7 +23,9 @@ export default function EnrollPage() {
   const [validation, setValidation] = useState<{
     valid: boolean
     reason?: string
+    kind?: string
     expiresAt?: string
+    instantUrl?: string
   } | null>(null)
   const [downloadUrl, setDownloadUrl] = useState<string>("")
 
@@ -32,6 +34,12 @@ export default function EnrollPage() {
       .then((r) => r.json())
       .then((result) => {
         setValidation(result)
+        if (result.valid && result.kind === "INSTANT") {
+          const connectUrl =
+            result.instantUrl || `${window.location.origin}/connect/${code}`
+          window.location.replace(connectUrl)
+          return
+        }
         if (result.valid) {
           setDownloadUrl(buildDownloadUrl(code))
           void fetch(`${API_BASE}/enrollment-links/${code}/track/open`, {
@@ -51,15 +59,25 @@ export default function EnrollPage() {
   }
 
   if (!validation.valid) {
+    const connectUrl =
+      validation.instantUrl ||
+      (typeof window !== "undefined"
+        ? `${window.location.origin}/connect/${code}`
+        : `/connect/${code}`)
     return (
       <div className="flex min-h-screen items-center justify-center p-6">
-        <Card className="max-w-md p-8 text-center">
+        <Card className="max-w-md space-y-4 p-8 text-center">
           <h1 className="text-xl font-semibold">Link unavailable</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             This enrollment link is{" "}
-            {validation.reason?.replace("_", " ") || "invalid"}. Ask your
+            {validation.reason?.replace(/_/g, " ") || "invalid"}. Ask your
             administrator for a new link.
           </p>
+          {validation.reason === "used" && validation.kind === "INSTANT" && (
+            <Button asChild variant="outline">
+              <a href={connectUrl}>Open instant connect page</a>
+            </Button>
+          )}
         </Card>
       </div>
     )

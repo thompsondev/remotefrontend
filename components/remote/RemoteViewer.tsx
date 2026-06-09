@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button"
 
 type RemoteViewerProps = {
   sessionId: string
+  viewOnly?: boolean
   onDataChannel?: (dc: RTCDataChannel) => void
   onDisconnect?: () => void
 }
 
 export function RemoteViewer({
   sessionId,
+  viewOnly = false,
   onDataChannel,
   onDisconnect,
 }: RemoteViewerProps) {
@@ -169,18 +171,26 @@ export function RemoteViewer({
           ref={videoRef}
           autoPlay
           playsInline
-          className="aspect-video w-full cursor-crosshair outline-none"
-          onMouseMove={handlePointer}
-          onMouseDown={handlePointer}
-          onMouseUp={handlePointer}
-          onKeyDown={handleKey}
-          onKeyUp={handleKey}
-          tabIndex={0}
+          className={`aspect-video w-full outline-none ${
+            viewOnly ? "cursor-default" : "cursor-crosshair"
+          }`}
+          onMouseMove={viewOnly ? undefined : handlePointer}
+          onMouseDown={viewOnly ? undefined : handlePointer}
+          onMouseUp={viewOnly ? undefined : handlePointer}
+          onKeyDown={viewOnly ? undefined : handleKey}
+          onKeyUp={viewOnly ? undefined : handleKey}
+          tabIndex={viewOnly ? -1 : 0}
         />
       </div>
-      {!connected && (
+      {!connected && !viewOnly && (
         <p className="text-xs text-muted-foreground">
           Click the video area to focus for keyboard input once connected.
+        </p>
+      )}
+      {viewOnly && connected && (
+        <p className="text-xs text-muted-foreground">
+          View-only session — remote control is not available for browser
+          devices.
         </p>
       )}
     </div>

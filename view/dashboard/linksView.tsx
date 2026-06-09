@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import {
   apiFetch,
+  createEnrollmentLink,
   deleteEnrollmentLink,
   deleteEnrollmentLinks,
   deleteExpiredEnrollmentLinks,
   type EnrollmentLink,
+  type EnrollmentLinkKind,
   type EnrollmentLinkStatus,
 } from "@/lib/api"
 import { showNotification } from "@/lib/showNotification"
@@ -43,9 +45,29 @@ function StatusBadge({ status }: { status: EnrollmentLinkStatus }) {
   )
 }
 
+const LINK_KINDS: { value: EnrollmentLinkKind; label: string; hint: string }[] =
+  [
+    {
+      value: "INSTANT",
+      label: "Instant connect",
+      hint: "Browser — no install (v2)",
+    },
+    {
+      value: "AGENT",
+      label: "Windows agent",
+      hint: "Download & install (v1)",
+    },
+    {
+      value: "BOTH",
+      label: "Both options",
+      hint: "Instant + agent links",
+    },
+  ]
+
 export default function LinksView() {
   const queryClient = useQueryClient()
   const [filter, setFilter] = useState<LinkFilter>("all")
+  const [linkKind, setLinkKind] = useState<EnrollmentLinkKind>("INSTANT")
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   const { data: links = [], isLoading } = useQuery({
@@ -72,15 +94,15 @@ export default function LinksView() {
   }
 
   const createMutation = useMutation({
-    mutationFn: () =>
-      apiFetch<EnrollmentLink>("/enrollment-links", { method: "POST" }),
+    mutationFn: () => createEnrollmentLink(linkKind),
     onSuccess: (link) => {
       invalidate()
-      if (link.url) {
-        void navigator.clipboard.writeText(link.url)
+      const copyUrl = link.instantUrl || link.url
+      if (copyUrl) {
+        void navigator.clipboard.writeText(copyUrl)
         showNotification({
           type: "success",
-          message: "Link created and copied to clipboard",
+          message: "Instant connect link copied to clipboard",
         })
       }
     },
@@ -195,16 +217,29 @@ export default function LinksView() {
         <div>
           <h1 className="text-2xl font-semibold">Enrollment links</h1>
           <p className="text-sm text-muted-foreground">
-            One-time links for users to install the agent and grant persistent
-            access
+            Share instant connect links (v2) or agent install links (v1)
           </p>
         </div>
-        <Button
-          onClick={() => createMutation.mutate()}
-          disabled={createMutation.isPending}
-        >
-          Generate new link
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={linkKind}
+            onChange={(e) => setLinkKind(e.target.value as EnrollmentLinkKind)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            aria-label="Link type"
+          >
+            {LINK_KINDS.map((kind) => (
+              <option key={kind.value} value={kind.value}>
+                {kind.label}
+              </option>
+            ))}
+          </select>
+          <Button
+            onClick={() => createMutation.mutate()}
+            disabled={createMutation.isPending}
+          >
+            Generate link
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -274,10 +309,20 @@ export default function LinksView() {
         )}
         {filteredLinks.map((link) => {
           const status = linkStatus(link)
-          const baseUrl =
+          const enrollBase =
             process.env.NEXT_PUBLIC_ENROLL_BASE_URL ||
             "http://localhost:3001/enroll"
-          const url = link.url || `${baseUrl}/${link.code}`
+          const connectBase =
+            process.env.NEXT_PUBLIC_CONNECT_BASE_URL ||
+            enrollBase.replace(/\/enroll\/?$/, "/connect")
+          const instantUrl = link.instantUrl || `${connectBase}/${link.code}`
+          const agentUrl = link.agentUrl || `${enrollBase}/${link.code}`
+          const primaryUrl =
+            link.kind === "AGENT"
+              ? agentUrl
+              : link.kind === "INSTANT"
+                ? instantUrl
+                : instantUrl
           return (
             <div
               key={link.id}
@@ -297,7 +342,16 @@ export default function LinksView() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusBadge status={status} />
-                    <p className="truncate font-mono text-sm">{url}</p>
+                    {link.kind && (
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                        {link.kind === "INSTANT"
+                          ? "Instant"
+                          : link.kind === "AGENT"
+                            ? "Agent"
+                            : "Both"}
+                      </span>
+                    )}
+                    <p className="truncate font-mono text-sm">{primaryUrl}</p>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Expires {new Date(link.expiresAt).toLocaleString()}
@@ -305,9 +359,19 @@ export default function LinksView() {
                       ? ` · ${link.stats.uniqueOpenCount} opened · ${link.stats.uniqueDownloadCount} downloaded`
                       : ""}
                     {status === "used" && link.device
-                      ? ` · Device: ${link.device.name}`
+                      ? ` · ${link.device.deviceType === "BROWSER" ? "Instant" : "Agent"}: ${link.device.name}`
                       : ""}
                   </p>
+                  {link.kind !== "AGENT" && (
+                    <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                      Instant: {instantUrl}
+                    </p>
+                  )}
+                  {link.kind !== "INSTANT" && (
+                    <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                      Agent: {agentUrl}
+                    </p>
+                  )}
                   {link.stats?.lastOpenedAt && (
                     <p className="mt-1 text-xs text-muted-foreground">
                       Last opened{" "}
@@ -323,10 +387,19 @@ export default function LinksView() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => copyUrl(url)}
+                  onClick={() => copyUrl(primaryUrl)}
                 >
                   Copy
                 </Button>
+                {link.kind === "BOTH" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyUrl(agentUrl)}
+                  >
+                    Copy agent
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="destructive"

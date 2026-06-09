@@ -9,21 +9,14 @@ import {
   loadBrowserCredentials,
   type BrowserAgentStatus,
 } from "@/lib/browser-agent"
+import {
+  fetchConnectValidation,
+  type ConnectValidation,
+} from "@/lib/connect-validation"
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
   "http://localhost:3000/v1"
-
-type ConnectValidation = {
-  valid: boolean
-  reason?: string
-  ready?: boolean
-  reconnect?: boolean
-  kind?: string
-  expiresAt?: string
-  instantUrl?: string
-  device?: { id: string; name: string; hostname: string }
-}
 
 type BrowserConnectSessionProps = {
   code: string
@@ -49,17 +42,18 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
   const [started, setStarted] = useState(false)
 
   useEffect(() => {
-    fetch(`${API_BASE}/enrollment-links/${code}/validate-connect`)
-      .then((r) => r.json())
-      .then((result: ConnectValidation) => {
-        setValidation(result)
-        if (result.valid) {
-          void fetch(`${API_BASE}/enrollment-links/${code}/track/connect`, {
+    void fetchConnectValidation(code).then((result) => {
+      setValidation(result)
+      if (result.valid) {
+        void fetch(`${API_BASE}/enrollment-links/${code}/track/connect`, {
+          method: "POST",
+        }).catch(() => {
+          void fetch(`${API_BASE}/enrollment-links/${code}/track/open`, {
             method: "POST",
           })
-        }
-      })
-      .catch(() => setValidation({ valid: false, reason: "error" }))
+        })
+      }
+    })
   }, [code])
 
   const initAgent = useCallback(
@@ -161,18 +155,33 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
 
   if (!validation.valid) {
     const reason = validation.reason?.replace(/_/g, " ") || "invalid"
+    const isAgentOnly = validation.reason === "agent_only"
+    const isServiceError = validation.reason === "error"
+    const enrollUrl =
+      process.env.NEXT_PUBLIC_ENROLL_BASE_URL?.replace(/\/$/, "") ||
+      (typeof window !== "undefined"
+        ? `${window.location.origin}/enroll`
+        : "/enroll")
+
     return (
       <div className="flex min-h-screen items-center justify-center p-6">
-        <Card className="max-w-md p-8 text-center">
+        <Card className="max-w-md space-y-4 p-8 text-center">
           <h1 className="text-xl font-semibold">Link unavailable</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            This connect link is {reason}. Ask your administrator for a new
-            link.
+          <p className="text-sm text-muted-foreground">
+            {isServiceError
+              ? "We could not reach the server to validate this link. Check your connection and try again."
+              : `This connect link is ${reason}. Ask your administrator for a new link.`}
           </p>
-          {validation.reason === "agent_only" && (
-            <p className="mt-4 text-xs text-muted-foreground">
-              This link requires the Windows agent installer instead.
-            </p>
+          {isAgentOnly && (
+            <>
+              <p className="text-xs text-muted-foreground">
+                This link is for the Windows agent installer, not instant
+                browser connect.
+              </p>
+              <Button asChild variant="outline">
+                <a href={`${enrollUrl}/${code}`}>Open agent install page</a>
+              </Button>
+            </>
           )}
         </Card>
       </div>

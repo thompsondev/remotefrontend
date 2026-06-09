@@ -97,12 +97,18 @@ export default function LinksView() {
     mutationFn: () => createEnrollmentLink(linkKind),
     onSuccess: (link) => {
       invalidate()
-      const copyUrl = link.instantUrl || link.url
+      const copyUrl =
+        link.kind === "AGENT"
+          ? link.agentUrl || link.url
+          : link.instantUrl || link.url
       if (copyUrl) {
         void navigator.clipboard.writeText(copyUrl)
         showNotification({
           type: "success",
-          message: "Instant connect link copied to clipboard",
+          message:
+            link.kind === "AGENT"
+              ? "Agent install link copied to clipboard"
+              : "Instant connect link copied to clipboard",
         })
       }
     },

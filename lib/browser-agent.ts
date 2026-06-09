@@ -252,6 +252,12 @@ export class BrowserAgentSession {
       }
     )
 
+    socket.on("viewer_ready", async (data: { sessionId: string }) => {
+      if (!data.sessionId || !this.activeSessionId) return
+      if (data.sessionId !== this.activeSessionId) return
+      await this.sendOfferForSession(data.sessionId)
+    })
+
     socket.on("session_end", () => {
       this.activeSessionId = null
       this.teardownPeer()
@@ -317,6 +323,14 @@ export class BrowserAgentSession {
 
     this.socket.emit("session_accept", { sessionId })
     this.socket.emit("join_session", { sessionId })
+
+    await this.sendOfferForSession(sessionId)
+  }
+
+  private async sendOfferForSession(sessionId: string) {
+    if (!this.socket || !this.stream || this.activeSessionId !== sessionId) {
+      return
+    }
 
     this.teardownPeer(false)
 

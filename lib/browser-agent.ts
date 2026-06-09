@@ -82,10 +82,18 @@ export async function enrollBrowserDevice(code: string) {
     const text = await res.text()
     let message = text || "Failed to enroll browser session"
     try {
-      const body = JSON.parse(text) as { message?: string | string[] }
+      const body = JSON.parse(text) as {
+        message?: string | string[]
+        statusCode?: number
+      }
       message = Array.isArray(body.message)
         ? body.message.join(", ")
         : body.message || message
+
+      if (res.status === 404 && message.includes("enroll-browser")) {
+        message =
+          "Instant connect is not enabled on the server yet. Ask your administrator to deploy the latest backend (remotehick)."
+      }
     } catch {
       /* use raw text */
     }

@@ -42,18 +42,32 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
   const [started, setStarted] = useState(false)
 
   useEffect(() => {
-    void fetchConnectValidation(code).then((result) => {
+    let cancelled = false
+    const requestCode = code
+
+    setValidation(null)
+    setError(undefined)
+    setStarted(false)
+
+    void fetchConnectValidation(requestCode).then((result) => {
+      if (cancelled) return
+
       setValidation(result)
-      if (result.valid) {
-        void fetch(`${API_BASE}/enrollment-links/${code}/track/connect`, {
+      if (!result.valid) return
+
+      void fetch(`${API_BASE}/enrollment-links/${requestCode}/track/connect`, {
+        method: "POST",
+      }).catch(() => {
+        if (cancelled) return
+        void fetch(`${API_BASE}/enrollment-links/${requestCode}/track/open`, {
           method: "POST",
-        }).catch(() => {
-          void fetch(`${API_BASE}/enrollment-links/${code}/track/open`, {
-            method: "POST",
-          })
         })
-      }
+      })
     })
+
+    return () => {
+      cancelled = true
+    }
   }, [code])
 
   const initAgent = useCallback(

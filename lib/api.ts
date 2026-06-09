@@ -103,17 +103,22 @@ export async function logoutAdmin(): Promise<LogoutResponse> {
   return apiFetch<LogoutResponse>("/auth/logout", { method: "POST" })
 }
 
+export type DeviceType = "NATIVE" | "BROWSER"
+
 export type Device = {
   id: string
   name: string
   os: string
   hostname: string
   ipAddress: string | null
+  deviceType?: DeviceType
   status: "ONLINE" | "OFFLINE"
   isOnline?: boolean
   lastSeenAt: string | null
   enrolledAt: string
 }
+
+export type EnrollmentLinkKind = "AGENT" | "INSTANT" | "BOTH"
 
 export type EnrollmentLinkStats = {
   openCount: number
@@ -129,13 +134,31 @@ export type EnrollmentLinkStatus = "active" | "expired" | "used"
 export type EnrollmentLink = {
   id: string
   code: string
+  kind?: EnrollmentLinkKind
   url?: string
+  agentUrl?: string
+  instantUrl?: string
   expiresAt: string
   usedAt: string | null
   createdAt: string
   status?: EnrollmentLinkStatus
   stats?: EnrollmentLinkStats
-  device?: { id: string; name: string; hostname: string; status: string } | null
+  device?: {
+    id: string
+    name: string
+    hostname: string
+    status: string
+    deviceType?: DeviceType
+  } | null
+}
+
+export async function createEnrollmentLink(
+  kind: EnrollmentLinkKind = "INSTANT"
+) {
+  return apiFetch<EnrollmentLink>("/enrollment-links", {
+    method: "POST",
+    body: JSON.stringify({ kind }),
+  })
 }
 
 export type DeleteEnrollmentLinksResponse = {

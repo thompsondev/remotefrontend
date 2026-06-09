@@ -90,21 +90,31 @@ export default function SessionView() {
         </Button>
       </div>
 
+      {session?.device?.deviceType === "BROWSER" && (
+        <p className="rounded-lg border border-violet-500/20 bg-violet-500/5 px-4 py-3 text-sm text-muted-foreground">
+          Instant browser session — view-only. File access and remote control
+          require the Windows agent (v1).
+        </p>
+      )}
+
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
         <RemoteViewer
           sessionId={sessionId}
+          viewOnly={session?.device?.deviceType === "BROWSER"}
           onDisconnect={() => router.push("/dashboard")}
         />
-        <div className="space-y-4">
-          <div>
-            <h2 className="mb-2 font-semibold">System info</h2>
-            <SystemInfo sessionId={sessionId} />
+        {session?.device?.deviceType !== "BROWSER" && (
+          <div className="space-y-4">
+            <div>
+              <h2 className="mb-2 font-semibold">System info</h2>
+              <SystemInfo sessionId={sessionId} />
+            </div>
+            <div>
+              <h2 className="mb-2 font-semibold">Files</h2>
+              <FileBrowser sessionId={sessionId} />
+            </div>
           </div>
-          <div>
-            <h2 className="mb-2 font-semibold">Files</h2>
-            <FileBrowser sessionId={sessionId} />
-          </div>
-        </div>
+        )}
       </div>
     </div>
   )

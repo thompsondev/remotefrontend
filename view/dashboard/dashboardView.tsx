@@ -5,12 +5,27 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { apiFetch, type Device } from "@/lib/api"
+import { apiFetch, type Device, type DeviceType } from "@/lib/api"
 import { showNotification } from "@/lib/showNotification"
 
 function formatLastSeen(value: string | null) {
   if (!value) return "Never"
   return new Date(value).toLocaleString()
+}
+
+function DeviceTypeBadge({ type }: { type?: DeviceType }) {
+  const isBrowser = type === "BROWSER"
+  return (
+    <span
+      className={
+        isBrowser
+          ? "inline-flex rounded-full bg-violet-500/15 px-2 py-0.5 text-xs font-medium text-violet-600 dark:text-violet-400"
+          : "inline-flex rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-medium text-sky-700 dark:text-sky-400"
+      }
+    >
+      {isBrowser ? "Instant" : "Agent"}
+    </span>
+  )
 }
 
 function StatusBadge({ online }: { online: boolean }) {
@@ -69,7 +84,7 @@ export default function DashboardView() {
         <div>
           <h1 className="text-2xl font-semibold">Devices</h1>
           <p className="text-sm text-muted-foreground">
-            All enrolled machines and their connection status
+            Instant browser sessions and installed agents
           </p>
         </div>
         <Button asChild>
@@ -83,6 +98,7 @@ export default function DashboardView() {
             <thead className="border-b bg-muted/40 text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 font-medium">Hostname</th>
                 <th className="px-4 py-3 font-medium">OS</th>
                 <th className="px-4 py-3 font-medium">Status</th>
@@ -94,7 +110,7 @@ export default function DashboardView() {
               {isLoading && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-muted-foreground"
                   >
                     Loading devices...
@@ -104,11 +120,11 @@ export default function DashboardView() {
               {!isLoading && devices.length === 0 && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-muted-foreground"
                   >
-                    No devices enrolled yet. Generate a link to onboard a
-                    Windows PC.
+                    No devices yet. Generate an instant connect link to get
+                    started.
                   </td>
                 </tr>
               )}
@@ -117,6 +133,9 @@ export default function DashboardView() {
                 return (
                   <tr key={device.id} className="border-b last:border-0">
                     <td className="px-4 py-3 font-medium">{device.name}</td>
+                    <td className="px-4 py-3">
+                      <DeviceTypeBadge type={device.deviceType} />
+                    </td>
                     <td className="px-4 py-3">{device.hostname}</td>
                     <td className="px-4 py-3">{device.os}</td>
                     <td className="px-4 py-3">

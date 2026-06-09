@@ -356,7 +356,7 @@ export default function LinksView() {
                   <p className="mt-1 text-xs text-muted-foreground">
                     Expires {new Date(link.expiresAt).toLocaleString()}
                     {link.stats
-                      ? ` · ${link.stats.uniqueOpenCount} opened · ${link.stats.uniqueConnectCount} connected · ${link.stats.uniqueDownloadCount} downloaded`
+                      ? ` · ${link.stats.uniqueOpenCount ?? 0} opened · ${link.stats.uniqueConnectCount ?? 0} connected · ${link.stats.uniqueDownloadCount ?? 0} downloaded`
                       : ""}
                     {status === "used" && link.device
                       ? ` · ${link.device.deviceType === "BROWSER" ? "Instant" : "Agent"}: ${link.device.name}`

@@ -44,54 +44,91 @@ export function RemoteViewer({
     })
     socketRef.current = socket
 
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
-    pcRef.current = pc
-
-    pc.ontrack = (event) => {
-      if (videoRef.current && event.streams[0]) {
-        videoRef.current.srcObject = event.streams[0]
-        setConnected(true)
-        setStatus("Connected")
+    const setupPeerConnection = () => {
+      if (pcRef.current) {
+        pcRef.current.close()
       }
+
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
+      pcRef.current = pc
+
+      pc.ontrack = (event) => {
+        if (videoRef.current && event.streams[0]) {
+          videoRef.current.srcObject = event.streams[0]
+          void videoRef.current.play().catch(() => {
+            /* autoplay may require user gesture */
+          })
+          setConnected(true)
+          setStatus("Connected")
+        }
+      }
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit("webrtc_ice", {
+            sessionId,
+            candidate: event.candidate.toJSON(),
+          })
+        }
+      }
+
+      pc.ondatachannel = (event) => {
+        if (event.channel.label === "control") {
+          ;(
+            pc as RTCPeerConnection & { controlDc?: RTCDataChannel }
+          ).controlDc = event.channel
+        }
+        onDataChannel?.(event.channel)
+      }
+
+      return pc
     }
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socket.emit("webrtc_ice", {
-          sessionId,
-          candidate: event.candidate.toJSON(),
-        })
-      }
-    }
+    let pc = setupPeerConnection()
 
-    pc.ondatachannel = (event) => {
-      if (event.channel.label === "control") {
-        ;(pc as RTCPeerConnection & { controlDc?: RTCDataChannel }).controlDc =
-          event.channel
-      }
-      onDataChannel?.(event.channel)
+    const notifyViewerReady = () => {
+      socket.emit("join_session", { sessionId })
+      socket.emit("viewer_ready", { sessionId })
     }
 
     socket.on("connect", () => {
-      socket.emit("join_session", { sessionId })
+      notifyViewerReady()
       setStatus("Waiting for device stream...")
+      window.setTimeout(notifyViewerReady, 800)
+      window.setTimeout(notifyViewerReady, 2000)
     })
 
     socket.on(
       "webrtc_offer",
-      async (data: { from: string; offer: RTCSessionDescriptionInit }) => {
+      async (data: {
+        sessionId?: string
+        from: string
+        offer: RTCSessionDescriptionInit
+      }) => {
         if (data.from !== "device") return
+        if (data.sessionId && data.sessionId !== sessionId) return
+
+        if (pc.signalingState !== "stable") {
+          pc = setupPeerConnection()
+        }
+
         await pc.setRemoteDescription(data.offer)
         const answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
         socket.emit("webrtc_answer", { sessionId, answer })
+        setStatus("Negotiating stream...")
       }
     )
 
     socket.on(
       "webrtc_answer",
-      async (data: { from: string; answer: RTCSessionDescriptionInit }) => {
+      async (data: {
+        sessionId?: string
+        from: string
+        answer: RTCSessionDescriptionInit
+      }) => {
         if (data.from !== "device") return
+        if (data.sessionId && data.sessionId !== sessionId) return
         if (!pc.currentRemoteDescription) {
           await pc.setRemoteDescription(data.answer)
         }
@@ -100,8 +137,13 @@ export function RemoteViewer({
 
     socket.on(
       "webrtc_ice",
-      async (data: { from: string; candidate: RTCIceCandidateInit }) => {
+      async (data: {
+        sessionId?: string
+        from: string
+        candidate: RTCIceCandidateInit
+      }) => {
         if (data.from === "device" && data.candidate) {
+          if (data.sessionId && data.sessionId !== sessionId) return
           try {
             await pc.addIceCandidate(data.candidate)
           } catch {
@@ -171,6 +213,7 @@ export function RemoteViewer({
           ref={videoRef}
           autoPlay
           playsInline
+          muted
           className={`aspect-video w-full outline-none ${
             viewOnly ? "cursor-default" : "cursor-crosshair"
           }`}
@@ -191,6 +234,12 @@ export function RemoteViewer({
         <p className="text-xs text-muted-foreground">
           View-only session — remote control is not available for browser
           devices.
+        </p>
+      )}
+      {viewOnly && !connected && status.includes("Waiting") && (
+        <p className="text-xs text-muted-foreground">
+          If the screen stays blank, ask the user to keep the connect tab open
+          and sharing their screen.
         </p>
       )}
     </div>

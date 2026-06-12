@@ -65,7 +65,7 @@ const LINK_KINDS: { value: EnrollmentLinkKind; label: string; hint: string }[] =
 export default function LinksView() {
   const queryClient = useQueryClient()
   const [filter, setFilter] = useState<LinkFilter>("all")
-  const [linkKind, setLinkKind] = useState<EnrollmentLinkKind>("BOTH")
+  const [linkKind, setLinkKind] = useState<EnrollmentLinkKind>("AGENT")
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [expandedLinkId, setExpandedLinkId] = useState<string | null>(null)
 
@@ -99,17 +99,17 @@ export default function LinksView() {
     onSuccess: (link) => {
       invalidate()
       const copyUrl =
-        link.kind === "AGENT"
-          ? link.agentUrl || link.url
-          : link.instantUrl || link.url
+        link.kind === "INSTANT"
+          ? link.instantUrl || link.url
+          : link.agentUrl || link.url
       if (copyUrl) {
         void navigator.clipboard.writeText(copyUrl)
         showNotification({
           type: "success",
           message:
-            link.kind === "AGENT"
-              ? "Agent install link copied to clipboard"
-              : "Instant connect link copied to clipboard",
+            link.kind === "INSTANT"
+              ? "Instant connect link copied to clipboard"
+              : "Agent install link copied to clipboard",
         })
       }
     },

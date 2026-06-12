@@ -54,6 +54,8 @@ export default function DashboardView() {
   const { data: devices = [], isLoading } = useQuery({
     queryKey: ["devices"],
     queryFn: () => apiFetch<Device[]>("/devices"),
+    refetchInterval: 3000,
+    refetchIntervalInBackground: true,
   })
 
   const connectMutation = useMutation({
@@ -136,7 +138,7 @@ export default function DashboardView() {
                 </tr>
               )}
               {devices.map((device) => {
-                const online = device.isOnline ?? device.status === "ONLINE"
+                const online = device.isOnline === true
                 return (
                   <tr key={device.id} className="border-b last:border-0">
                     <td className="px-4 py-3 font-medium">{device.name}</td>

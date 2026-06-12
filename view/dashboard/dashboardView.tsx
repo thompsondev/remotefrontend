@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card"
 import {
   apiFetch,
   formatDeviceLocation,
+  isDeviceOnline,
   type Device,
   type DeviceType,
 } from "@/lib/api"
@@ -138,7 +139,7 @@ export default function DashboardView() {
                 </tr>
               )}
               {devices.map((device) => {
-                const online = device.isOnline === true
+                const online = isDeviceOnline(device)
                 return (
                   <tr key={device.id} className="border-b last:border-0">
                     <td className="px-4 py-3 font-medium">{device.name}</td>

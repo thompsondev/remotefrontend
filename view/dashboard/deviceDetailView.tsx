@@ -5,7 +5,12 @@ import Link from "next/link"
 import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { apiFetch, formatDeviceLocation, type Device } from "@/lib/api"
+import {
+  apiFetch,
+  formatDeviceLocation,
+  isDeviceOnline,
+  type Device,
+} from "@/lib/api"
 
 type DeviceDetail = Device & {
   sessions: Array<{
@@ -55,7 +60,7 @@ export default function DeviceDetailView() {
     return <p className="text-muted-foreground">Device not found</p>
   }
 
-  const online = device.isOnline === true
+  const online = isDeviceOnline(device)
 
   return (
     <div className="space-y-6">

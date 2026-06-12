@@ -43,6 +43,8 @@ export default function DeviceDetailView() {
   const { data: device, isLoading } = useQuery({
     queryKey: ["device", id],
     queryFn: () => apiFetch<DeviceDetail>(`/devices/${id}`),
+    refetchInterval: 3000,
+    refetchIntervalInBackground: true,
   })
 
   if (isLoading) {
@@ -53,7 +55,7 @@ export default function DeviceDetailView() {
     return <p className="text-muted-foreground">Device not found</p>
   }
 
-  const online = device.isOnline ?? device.status === "ONLINE"
+  const online = device.isOnline === true
 
   return (
     <div className="space-y-6">

@@ -5,7 +5,7 @@ const API_BASE =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
   "http://localhost:3000/v1"
 
-const HEARTBEAT_MS = 25_000
+const HEARTBEAT_MS = 15_000
 
 export type BrowserAgentCredentials = {
   deviceId: string
@@ -186,6 +186,8 @@ export class BrowserAgentSession {
     }
     saveBrowserCredentials(this.creds)
 
+    this.startHeartbeatLoop()
+    await sendHeartbeat(this.creds.deviceId, this.creds.deviceToken)
     await this.connect()
   }
 
@@ -215,25 +217,18 @@ export class BrowserAgentSession {
     await this.connect()
   }
 
-  private async connect(): Promise<void> {
-    if (this.destroyed) return
-    this.setStatus("connecting")
+  private startHeartbeatLoop() {
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
+    this.heartbeatTimer = setInterval(() => {
+      void sendHeartbeat(this.creds.deviceId, this.creds.deviceToken).catch(
+        () => {
+          /* heartbeat retry on next tick */
+        }
+      )
+    }, HEARTBEAT_MS)
+  }
 
-    if (this.socket) {
-      this.socket.disconnect()
-      this.socket = null
-    }
-
-    const socket = io(`${getWsUrl()}/signaling`, {
-      auth: {
-        role: "device",
-        token: this.creds.deviceToken,
-        deviceId: this.creds.deviceId,
-      },
-      transports: ["websocket"],
-    })
-    this.socket = socket
-
+  private attachSocketListeners(socket: Socket) {
     socket.on("connect", () => {
       this.setStatus("waiting")
       void sendHeartbeat(this.creds.deviceId, this.creds.deviceToken)
@@ -253,9 +248,14 @@ export class BrowserAgentSession {
     )
 
     socket.on("viewer_ready", async (data: { sessionId: string }) => {
-      if (!data.sessionId || !this.activeSessionId) return
-      if (data.sessionId !== this.activeSessionId) return
-      await this.sendOfferForSession(data.sessionId)
+      if (!data.sessionId || !this.stream) return
+      if (this.activeSessionId === data.sessionId) {
+        await this.sendOfferForSession(data.sessionId)
+        return
+      }
+      if (!this.activeSessionId) {
+        await this.handleSessionRequest(data.sessionId)
+      }
     })
 
     socket.on("session_end", () => {
@@ -303,15 +303,36 @@ export class BrowserAgentSession {
         }
       }
     )
+  }
 
-    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
-    this.heartbeatTimer = setInterval(() => {
-      void sendHeartbeat(this.creds.deviceId, this.creds.deviceToken).catch(
-        () => {
-          /* heartbeat retry on next tick */
-        }
-      )
-    }, HEARTBEAT_MS)
+  private async connect(): Promise<void> {
+    if (this.destroyed) return
+
+    if (this.socket?.connected) {
+      this.setStatus("waiting")
+      return
+    }
+
+    this.setStatus("connecting")
+
+    if (!this.socket) {
+      const socket = io(`${getWsUrl()}/signaling`, {
+        auth: {
+          role: "device",
+          token: this.creds.deviceToken,
+          deviceId: this.creds.deviceId,
+        },
+        transports: ["websocket"],
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+      })
+      this.socket = socket
+      this.attachSocketListeners(socket)
+    } else if (!this.socket.connected) {
+      this.socket.connect()
+    }
   }
 
   private async handleSessionRequest(sessionId: string) {

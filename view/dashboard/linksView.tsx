@@ -72,6 +72,8 @@ export default function LinksView() {
   const { data: links = [], isLoading } = useQuery({
     queryKey: ["enrollment-links"],
     queryFn: () => apiFetch<EnrollmentLink[]>("/enrollment-links"),
+    refetchInterval: 3000,
+    refetchIntervalInBackground: true,
   })
 
   const filteredLinks = useMemo(

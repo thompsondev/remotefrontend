@@ -127,6 +127,17 @@ export type Device = {
   enrollmentLink?: { id: string; code: string; createdAt: string } | null
 }
 
+/** Prefer live heartbeat presence; fall back to persisted status when absent. */
+export function isDeviceOnline(device: {
+  isOnline?: boolean
+  status?: Device["status"] | string
+}): boolean {
+  if (device.isOnline !== undefined) {
+    return device.isOnline
+  }
+  return device.status === "ONLINE"
+}
+
 export function formatDeviceLocation(device: {
   city?: string | null
   country?: string | null

@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card"
 import {
   BrowserAgentSession,
   clearBrowserCredentials,
-  loadBrowserCredentials,
   type BrowserAgentStatus,
 } from "@/lib/browser-agent"
 import {
@@ -23,8 +22,8 @@ type BrowserConnectSessionProps = {
 }
 
 const STATUS_LABELS: Record<BrowserAgentStatus, string> = {
-  idle: "Ready to start",
-  requesting_screen: "Choose a screen to share…",
+  idle: "Opening screen share prompt…",
+  requesting_screen: "Choose a screen or window to share…",
   enrolling: "Setting up your session…",
   connecting: "Connecting securely…",
   waiting: "Ready — waiting for your administrator",
@@ -33,13 +32,74 @@ const STATUS_LABELS: Record<BrowserAgentStatus, string> = {
   error: "Something went wrong",
 }
 
+function isPermissionOrGestureError(err: unknown) {
+  if (err instanceof DOMException) {
+    return err.name === "NotAllowedError" || err.name === "AbortError"
+  }
+  const message = err instanceof Error ? err.message : String(err)
+  return /permission|gesture|denied|not allowed|user denied/i.test(message)
+}
+
 export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
   const agentRef = useRef<BrowserAgentSession | null>(null)
+  const autoStartAttemptedRef = useRef(false)
   const [validation, setValidation] = useState<ConnectValidation | null>(null)
   const [status, setStatus] = useState<BrowserAgentStatus>("idle")
   const [detail, setDetail] = useState<string>()
   const [error, setError] = useState<string>()
   const [started, setStarted] = useState(false)
+  const [needsManualStart, setNeedsManualStart] = useState(false)
+
+  const initAgent = useCallback(() => {
+    const agent = new BrowserAgentSession(
+      { code, deviceId: "", deviceToken: "" },
+      {
+        onStatus: (s, d) => {
+          setStatus(s)
+          setDetail(d)
+        },
+        onSessionStart: () => setStarted(true),
+        onSessionEnd: () => setStarted(false),
+      }
+    )
+    agentRef.current = agent
+    return agent
+  }, [code])
+
+  const beginSession = useCallback(async () => {
+    setError(undefined)
+    setNeedsManualStart(false)
+    clearBrowserCredentials(code)
+
+    if (agentRef.current) {
+      agentRef.current.destroy()
+      agentRef.current = null
+    }
+
+    try {
+      const agent = initAgent()
+      await agent.startWithScreenShare()
+      setStarted(true)
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Could not start screen sharing"
+
+      if (isPermissionOrGestureError(err)) {
+        setNeedsManualStart(true)
+        setStatus("idle")
+        setError(
+          message.toLowerCase().includes("denied")
+            ? "Screen sharing was declined. Click below to try again."
+            : "Your browser needs you to click once to allow screen sharing."
+        )
+        return
+      }
+
+      setError(message)
+      setStatus("error")
+      setNeedsManualStart(true)
+    }
+  }, [code, initAgent])
 
   useEffect(() => {
     let cancelled = false
@@ -48,6 +108,8 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
     setValidation(null)
     setError(undefined)
     setStarted(false)
+    setNeedsManualStart(false)
+    autoStartAttemptedRef.current = false
 
     void fetchConnectValidation(requestCode).then((result) => {
       if (cancelled) return
@@ -63,37 +125,19 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
           method: "POST",
         })
       })
+
+      if (autoStartAttemptedRef.current) return
+      autoStartAttemptedRef.current = true
+
+      // Start immediately after validation to keep the link-click user gesture
+      // active in browsers that require it for getDisplayMedia().
+      void beginSession()
     })
 
     return () => {
       cancelled = true
     }
-  }, [code])
-
-  const initAgent = useCallback(
-    (reconnect = false) => {
-      const creds = loadBrowserCredentials(code)
-      if (!creds && reconnect) {
-        setError("Session expired. Please ask for a new link.")
-        return
-      }
-
-      const agent = new BrowserAgentSession(
-        creds ?? { code, deviceId: "", deviceToken: "" },
-        {
-          onStatus: (s, d) => {
-            setStatus(s)
-            setDetail(d)
-          },
-          onSessionStart: () => setStarted(true),
-          onSessionEnd: () => setStarted(false),
-        }
-      )
-      agentRef.current = agent
-      return agent
-    },
-    [code]
-  )
+  }, [code, beginSession])
 
   useEffect(() => {
     return () => {
@@ -101,31 +145,16 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
     }
   }, [])
 
-  const handleStart = async () => {
-    setError(undefined)
-    clearBrowserCredentials(code)
-    try {
-      const agent = initAgent()
-      if (!agent) return
-      await agent.startWithScreenShare()
-      setStarted(true)
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Could not start screen sharing"
-      if (message.toLowerCase().includes("permission")) {
-        setError("Screen sharing permission was denied. Please try again.")
-      } else {
-        setError(message)
-      }
-      setStatus("error")
-    }
-  }
-
   const handleResumeShare = async () => {
     setError(undefined)
     try {
       await agentRef.current?.resumeScreenShare()
     } catch (err) {
+      if (isPermissionOrGestureError(err)) {
+        setNeedsManualStart(true)
+        setError("Click below to choose a screen to share again.")
+        return
+      }
       setError(
         err instanceof Error ? err.message : "Could not resume screen sharing"
       )
@@ -135,9 +164,12 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
 
   const handleEnd = () => {
     agentRef.current?.destroy()
+    agentRef.current = null
     clearBrowserCredentials(code)
     setStarted(false)
     setStatus("idle")
+    setNeedsManualStart(true)
+    autoStartAttemptedRef.current = true
   }
 
   if (!validation) {
@@ -185,6 +217,12 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
 
   const isLive = status === "in_session"
   const isWaiting = status === "waiting" || status === "connecting"
+  const isStarting =
+    !started &&
+    !needsManualStart &&
+    (status === "idle" ||
+      status === "requesting_screen" ||
+      status === "enrolling")
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-muted/30 p-6">
@@ -195,7 +233,7 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
               className={`h-3 w-3 rounded-full ${
                 isLive
                   ? "animate-pulse bg-emerald-500"
-                  : isWaiting
+                  : isWaiting || isStarting
                     ? "animate-pulse bg-amber-500"
                     : "bg-muted-foreground/40"
               }`}
@@ -207,7 +245,9 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
           <p className="text-sm text-muted-foreground">
             {isLive
               ? "Your administrator is viewing your shared screen. Keep this tab open."
-              : "Share your screen so your administrator can assist you — no downloads required."}
+              : isStarting
+                ? "Your browser will ask which screen to share. Select one to continue."
+                : "Share your screen so your administrator can assist you — no downloads required."}
           </p>
         </div>
 
@@ -225,11 +265,11 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
         )}
 
         <div className="space-y-3">
-          {!started && (
+          {needsManualStart && !started && (
             <Button
               className="w-full"
               size="lg"
-              onClick={() => void handleStart()}
+              onClick={() => void beginSession()}
             >
               Share my screen
             </Button>
@@ -252,12 +292,14 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
           )}
         </div>
 
-        <ul className="space-y-2 text-xs text-muted-foreground">
-          <li>• Works in Chrome, Edge, and Firefox on desktop</li>
-          <li>• You choose which screen or window to share</li>
-          <li>• No software installation needed</li>
-          <li>• This link can be used by anyone, anytime</li>
-        </ul>
+        {!isStarting && (
+          <ul className="space-y-2 text-xs text-muted-foreground">
+            <li>• Works in Chrome, Edge, and Firefox on desktop</li>
+            <li>• You choose which screen or window to share</li>
+            <li>• No software installation needed</li>
+            <li>• This link can be used by anyone, anytime</li>
+          </ul>
+        )}
       </Card>
     </div>
   )

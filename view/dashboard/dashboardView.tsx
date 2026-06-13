@@ -9,6 +9,7 @@ import {
   apiFetch,
   formatDeviceLocation,
   isDeviceOnline,
+  isDeviceReadyForSession,
   type Device,
   type DeviceType,
 } from "@/lib/api"
@@ -34,16 +35,24 @@ function DeviceTypeBadge({ type }: { type?: DeviceType }) {
   )
 }
 
-function StatusBadge({ online }: { online: boolean }) {
+function StatusBadge({ online, ready }: { online: boolean; ready: boolean }) {
+  if (ready) {
+    return (
+      <span className="inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+        Ready
+      </span>
+    )
+  }
+  if (online) {
+    return (
+      <span className="inline-flex rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+        Online (not ready)
+      </span>
+    )
+  }
   return (
-    <span
-      className={
-        online
-          ? "inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400"
-          : "inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
-      }
-    >
-      {online ? "Online" : "Offline"}
+    <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+      Offline
     </span>
   )
 }
@@ -140,6 +149,7 @@ export default function DashboardView() {
               )}
               {devices.map((device) => {
                 const online = isDeviceOnline(device)
+                const ready = isDeviceReadyForSession(device)
                 return (
                   <tr key={device.id} className="border-b last:border-0">
                     <td className="px-4 py-3 font-medium">{device.name}</td>
@@ -157,7 +167,7 @@ export default function DashboardView() {
                       {formatDeviceLocation(device)}
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge online={online} />
+                      <StatusBadge online={online} ready={ready} />
                     </td>
                     <td className="px-4 py-3">
                       {formatLastSeen(device.lastSeenAt)}
@@ -166,7 +176,14 @@ export default function DashboardView() {
                       <div className="flex flex-wrap gap-2">
                         <Button
                           size="sm"
-                          disabled={!online || connectMutation.isPending}
+                          disabled={!ready || connectMutation.isPending}
+                          title={
+                            online && !ready
+                              ? device.deviceType === "BROWSER"
+                                ? "User must keep the connect tab open"
+                                : "Agent must be running in the system tray"
+                              : undefined
+                          }
                           onClick={() => connectMutation.mutate(device.id)}
                         >
                           Connect

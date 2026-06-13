@@ -220,6 +220,9 @@ export class BrowserAgentSession {
   private startHeartbeatLoop() {
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
     this.heartbeatTimer = setInterval(() => {
+      if (this.socket?.connected) {
+        this.socket.emit("device_ping")
+      }
       void sendHeartbeat(this.creds.deviceId, this.creds.deviceToken).catch(
         () => {
           /* heartbeat retry on next tick */
@@ -231,6 +234,7 @@ export class BrowserAgentSession {
   private attachSocketListeners(socket: Socket) {
     socket.on("connect", () => {
       this.setStatus("waiting")
+      socket.emit("device_ping")
       void sendHeartbeat(this.creds.deviceId, this.creds.deviceToken)
     })
 

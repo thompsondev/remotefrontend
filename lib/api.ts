@@ -121,6 +121,7 @@ export type Device = {
   deviceType?: DeviceType
   status: "ONLINE" | "OFFLINE"
   isOnline?: boolean
+  signalingReady?: boolean
   lastSeenAt: string | null
   enrolledAt: string
   enrollmentLinkId?: string | null
@@ -136,6 +137,15 @@ export function isDeviceOnline(device: {
     return device.isOnline
   }
   return device.status === "ONLINE"
+}
+
+/** Device is online AND has an active signaling WebSocket (can accept Connect). */
+export function isDeviceReadyForSession(device: {
+  isOnline?: boolean
+  signalingReady?: boolean
+  status?: Device["status"] | string
+}): boolean {
+  return isDeviceOnline(device) && device.signalingReady === true
 }
 
 export function formatDeviceLocation(device: {

@@ -113,11 +113,34 @@ export async function enrollBrowserDevice(code: string) {
     }
     throw new Error(message)
   }
-  return res.json() as Promise<{
-    deviceId: string
-    deviceToken: string
-    device: { id: string; name: string; hostname: string; os: string }
-  }>
+
+  const data = (await res.json()) as {
+    deviceId?: string
+    deviceToken?: string
+    device?: { id: string; name: string; hostname: string; os: string }
+  }
+
+  if (typeof data.deviceId !== "string" || !data.deviceId.trim()) {
+    throw new Error(
+      "Enrollment succeeded but the server did not return a device ID"
+    )
+  }
+  if (typeof data.deviceToken !== "string" || !data.deviceToken.trim()) {
+    throw new Error(
+      "Enrollment succeeded but the server did not return a device token"
+    )
+  }
+
+  return {
+    deviceId: data.deviceId,
+    deviceToken: data.deviceToken,
+    device: data.device ?? {
+      id: data.deviceId,
+      name: "Browser Session",
+      hostname: "browser",
+      os: "Web Browser",
+    },
+  }
 }
 
 async function sendHeartbeat(deviceId: string, deviceToken: string) {

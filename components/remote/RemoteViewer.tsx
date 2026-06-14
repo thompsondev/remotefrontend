@@ -27,7 +27,7 @@ export function RemoteViewer({
   const socketRef = useRef<Socket | null>(null)
   const streamConnectedRef = useRef(false)
   const lastOfferAtRef = useRef(0)
-  const viewerReadyRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const viewerReadyRetryRef = useRef<number | null>(null)
   const [connected, setConnected] = useState(false)
   const [status, setStatus] = useState("Connecting...")
 

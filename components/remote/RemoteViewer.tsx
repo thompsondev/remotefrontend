@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { io, Socket } from "socket.io-client"
 import { getAdminToken } from "@/lib/api"
-import { getWsUrl, ICE_SERVERS } from "@/lib/webrtc"
+import { fetchIceServers, getWsUrl } from "@/lib/webrtc"
 import { Button } from "@/components/ui/button"
 
 type RemoteViewerProps = {
@@ -12,6 +12,9 @@ type RemoteViewerProps = {
   onDataChannel?: (dc: RTCDataChannel) => void
   onDisconnect?: () => void
 }
+
+const VIEWER_READY_RETRY_MS = 4_000
+const OFFER_IGNORE_WINDOW_MS = 1_500
 
 export function RemoteViewer({
   sessionId,
@@ -22,6 +25,9 @@ export function RemoteViewer({
   const videoRef = useRef<HTMLVideoElement>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
   const socketRef = useRef<Socket | null>(null)
+  const streamConnectedRef = useRef(false)
+  const lastOfferAtRef = useRef(0)
+  const viewerReadyRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [connected, setConnected] = useState(false)
   const [status, setStatus] = useState("Connecting...")
 
@@ -38,140 +44,238 @@ export function RemoteViewer({
     const token = getAdminToken()
     if (!token) return
 
-    const socket = io(`${getWsUrl()}/signaling`, {
-      auth: { role: "admin", token },
-      transports: ["websocket"],
-    })
-    socketRef.current = socket
+    let cancelled = false
+    let activePc: RTCPeerConnection | null = null
+    let socket: Socket | null = null
 
-    const setupPeerConnection = () => {
-      if (pcRef.current) {
-        pcRef.current.close()
-      }
+    void (async () => {
+      const iceServers = await fetchIceServers({ adminToken: token })
+      if (cancelled) return
 
-      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
-      pcRef.current = pc
+      socket = io(`${getWsUrl()}/signaling`, {
+        auth: { role: "admin", token },
+        transports: ["websocket"],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+      })
+      socketRef.current = socket
 
-      pc.ontrack = (event) => {
-        if (videoRef.current && event.streams[0]) {
-          videoRef.current.srcObject = event.streams[0]
-          void videoRef.current.play().catch(() => {
-            /* autoplay may require user gesture */
-          })
-          setConnected(true)
-          setStatus("Connected")
-        }
-      }
-
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.emit("webrtc_ice", {
-            sessionId,
-            candidate: event.candidate.toJSON(),
-          })
-        }
-      }
-
-      pc.ondatachannel = (event) => {
-        if (event.channel.label === "control") {
-          ;(
-            pc as RTCPeerConnection & { controlDc?: RTCDataChannel }
-          ).controlDc = event.channel
-        }
-        onDataChannel?.(event.channel)
-      }
-
-      return pc
-    }
-
-    let pc = setupPeerConnection()
-
-    const notifyViewerReady = () => {
-      socket.emit("join_session", { sessionId })
-      socket.emit("viewer_ready", { sessionId })
-    }
-
-    socket.on("connect", () => {
-      notifyViewerReady()
-      setStatus("Waiting for device stream...")
-      window.setTimeout(notifyViewerReady, 800)
-      window.setTimeout(notifyViewerReady, 2000)
-    })
-
-    socket.on(
-      "webrtc_offer",
-      async (data: {
-        sessionId?: string
-        from: string
-        offer: RTCSessionDescriptionInit
-      }) => {
-        if (data.from !== "device") return
-        if (data.sessionId && data.sessionId !== sessionId) return
-
-        if (pc.signalingState !== "stable") {
-          pc = setupPeerConnection()
-        }
-
-        await pc.setRemoteDescription(data.offer)
-        const answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)
-        socket.emit("webrtc_answer", { sessionId, answer })
-        setStatus("Negotiating stream...")
-      }
-    )
-
-    socket.on(
-      "webrtc_answer",
-      async (data: {
-        sessionId?: string
-        from: string
-        answer: RTCSessionDescriptionInit
-      }) => {
-        if (data.from !== "device") return
-        if (data.sessionId && data.sessionId !== sessionId) return
-        if (!pc.currentRemoteDescription) {
-          await pc.setRemoteDescription(data.answer)
-        }
-      }
-    )
-
-    socket.on(
-      "webrtc_ice",
-      async (data: {
-        sessionId?: string
-        from: string
-        candidate: RTCIceCandidateInit
-      }) => {
-        if (data.from === "device" && data.candidate) {
-          if (data.sessionId && data.sessionId !== sessionId) return
-          try {
-            await pc.addIceCandidate(data.candidate)
-          } catch {
-            /* ignore stale candidates */
+      const attachPeerHandlers = (peer: RTCPeerConnection) => {
+        peer.ontrack = (event) => {
+          if (videoRef.current && event.streams[0]) {
+            videoRef.current.srcObject = event.streams[0]
+            void videoRef.current.play().catch(() => {
+              /* autoplay may require user gesture */
+            })
+            streamConnectedRef.current = true
+            setConnected(true)
+            setStatus("Connected")
           }
         }
-      }
-    )
 
-    socket.on("session_end", () => {
-      setStatus("Session ended")
-      onDisconnect?.()
-    })
+        peer.onicecandidate = (event) => {
+          if (event.candidate && socket) {
+            socket.emit("webrtc_ice", {
+              sessionId,
+              candidate: event.candidate.toJSON(),
+            })
+          }
+        }
 
-    socket.on(
-      "data_channel_message",
-      (data: { from: string; message: unknown }) => {
-        if (data.from === "device") {
-          window.dispatchEvent(
-            new CustomEvent("remote-agent-message", { detail: data.message })
-          )
+        peer.oniceconnectionstatechange = () => {
+          const ice = peer.iceConnectionState
+          if (ice === "connected" || ice === "completed") {
+            if (streamConnectedRef.current) {
+              setConnected(true)
+              setStatus("Connected")
+            }
+            return
+          }
+
+          if (ice === "checking") {
+            if (!streamConnectedRef.current) {
+              setStatus("Negotiating stream...")
+            }
+            return
+          }
+
+          if (ice === "disconnected") {
+            if (streamConnectedRef.current) {
+              setStatus("Reconnecting stream...")
+            }
+            return
+          }
+
+          if (ice === "failed" && socket) {
+            streamConnectedRef.current = false
+            setConnected(false)
+            setStatus("Connection lost — retrying...")
+            socket.emit("viewer_ready", { sessionId })
+          }
+        }
+
+        peer.ondatachannel = (event) => {
+          if (event.channel.label === "control") {
+            ;(
+              peer as RTCPeerConnection & { controlDc?: RTCDataChannel }
+            ).controlDc = event.channel
+          }
+          onDataChannel?.(event.channel)
         }
       }
-    )
+
+      const setupPeerConnection = () => {
+        if (pcRef.current) {
+          pcRef.current.close()
+        }
+
+        const peer = new RTCPeerConnection({ iceServers })
+        pcRef.current = peer
+        attachPeerHandlers(peer)
+        return peer
+      }
+
+      activePc = setupPeerConnection()
+
+      const scheduleViewerReadyRetry = () => {
+        if (viewerReadyRetryRef.current) {
+          clearTimeout(viewerReadyRetryRef.current)
+        }
+        viewerReadyRetryRef.current = window.setTimeout(() => {
+          if (!streamConnectedRef.current && socket?.connected) {
+            socket.emit("viewer_ready", { sessionId })
+          }
+        }, VIEWER_READY_RETRY_MS)
+      }
+
+      const notifyViewerReady = () => {
+        socket?.emit("join_session", { sessionId })
+        socket?.emit("viewer_ready", { sessionId })
+        scheduleViewerReadyRetry()
+      }
+
+      socket.on("connect", () => {
+        notifyViewerReady()
+        setStatus(
+          streamConnectedRef.current
+            ? "Connected"
+            : "Waiting for device stream..."
+        )
+      })
+
+      socket.on(
+        "webrtc_offer",
+        async (data: {
+          sessionId?: string
+          from: string
+          offer: RTCSessionDescriptionInit
+        }) => {
+          if (data.from !== "device" || !activePc) return
+          if (data.sessionId && data.sessionId !== sessionId) return
+
+          const now = Date.now()
+          if (now - lastOfferAtRef.current < OFFER_IGNORE_WINDOW_MS) {
+            return
+          }
+          lastOfferAtRef.current = now
+
+          if (activePc.signalingState === "have-remote-offer") {
+            return
+          }
+
+          if (
+            activePc.signalingState === "closed" ||
+            activePc.connectionState === "closed" ||
+            activePc.iceConnectionState === "failed"
+          ) {
+            activePc = setupPeerConnection()
+            streamConnectedRef.current = false
+            setConnected(false)
+          }
+
+          try {
+            await activePc.setRemoteDescription(data.offer)
+            const answer = await activePc.createAnswer()
+            await activePc.setLocalDescription(answer)
+            socket?.emit("webrtc_answer", { sessionId, answer })
+            if (!streamConnectedRef.current) {
+              setStatus("Negotiating stream...")
+            }
+          } catch {
+            activePc = setupPeerConnection()
+            streamConnectedRef.current = false
+            setConnected(false)
+            try {
+              await activePc.setRemoteDescription(data.offer)
+              const answer = await activePc.createAnswer()
+              await activePc.setLocalDescription(answer)
+              socket?.emit("webrtc_answer", { sessionId, answer })
+              setStatus("Negotiating stream...")
+            } catch {
+              setStatus("Failed to negotiate stream")
+            }
+          }
+        }
+      )
+
+      socket.on(
+        "webrtc_answer",
+        async (data: {
+          sessionId?: string
+          from: string
+          answer: RTCSessionDescriptionInit
+        }) => {
+          if (data.from !== "device" || !activePc) return
+          if (data.sessionId && data.sessionId !== sessionId) return
+          if (!activePc.currentRemoteDescription) {
+            await activePc.setRemoteDescription(data.answer)
+          }
+        }
+      )
+
+      socket.on(
+        "webrtc_ice",
+        async (data: {
+          sessionId?: string
+          from: string
+          candidate: RTCIceCandidateInit
+        }) => {
+          if (data.from === "device" && data.candidate && activePc) {
+            if (data.sessionId && data.sessionId !== sessionId) return
+            try {
+              await activePc.addIceCandidate(data.candidate)
+            } catch {
+              /* ignore stale candidates */
+            }
+          }
+        }
+      )
+
+      socket.on("session_end", () => {
+        setStatus("Session ended")
+        onDisconnect?.()
+      })
+
+      socket.on(
+        "data_channel_message",
+        (data: { from: string; message: unknown }) => {
+          if (data.from === "device") {
+            window.dispatchEvent(
+              new CustomEvent("remote-agent-message", { detail: data.message })
+            )
+          }
+        }
+      )
+    })()
 
     return () => {
-      socket.disconnect()
-      pc.close()
+      cancelled = true
+      if (viewerReadyRetryRef.current) {
+        clearTimeout(viewerReadyRetryRef.current)
+      }
+      socket?.disconnect()
+      activePc?.close()
     }
   }, [sessionId, onDataChannel, onDisconnect])
 

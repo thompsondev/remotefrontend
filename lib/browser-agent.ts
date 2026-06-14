@@ -1,5 +1,5 @@
 import { io, Socket } from "socket.io-client"
-import { getWsUrl, ICE_SERVERS } from "@/lib/webrtc"
+import { getWsUrl, fetchIceServers } from "@/lib/webrtc"
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
@@ -168,6 +168,7 @@ export class BrowserAgentSession {
   private creds: BrowserAgentCredentials
   private activeSessionId: string | null = null
   private destroyed = false
+  private lastOfferSentAt = 0
 
   constructor(
     creds: BrowserAgentCredentials,
@@ -372,17 +373,49 @@ export class BrowserAgentSession {
     this.socket.emit("session_accept", { sessionId })
     this.socket.emit("join_session", { sessionId })
 
-    await this.sendOfferForSession(sessionId)
+    await this.sendOfferForSession(sessionId, true)
   }
 
-  private async sendOfferForSession(sessionId: string) {
+  private shouldResendOffer(force: boolean): boolean {
+    if (force) return true
+    if (!this.pc) return true
+
+    const ice = this.pc.iceConnectionState
+    if (ice === "connected" || ice === "completed") {
+      return false
+    }
+
+    const elapsed = Date.now() - this.lastOfferSentAt
+    if (ice === "checking" || ice === "new") {
+      return elapsed > 4_000
+    }
+
+    return elapsed > 2_000
+  }
+
+  private async sendOfferForSession(sessionId: string, force = false) {
     if (!this.socket || !this.stream || this.activeSessionId !== sessionId) {
+      return
+    }
+
+    if (!this.shouldResendOffer(force)) {
+      return
+    }
+
+    if (
+      this.pc &&
+      (this.pc.iceConnectionState === "connected" ||
+        this.pc.iceConnectionState === "completed")
+    ) {
       return
     }
 
     this.teardownPeer(false)
 
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
+    const iceServers = await fetchIceServers({
+      deviceToken: this.creds.deviceToken,
+    })
+    const pc = new RTCPeerConnection({ iceServers })
     this.pc = pc
 
     this.stream.getTracks().forEach((track) => {
@@ -400,6 +433,7 @@ export class BrowserAgentSession {
 
     const offer = await pc.createOffer()
     await pc.setLocalDescription(offer)
+    this.lastOfferSentAt = Date.now()
     this.socket.emit("webrtc_offer", { sessionId, offer })
   }
 

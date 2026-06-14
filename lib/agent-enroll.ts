@@ -89,6 +89,18 @@ export async function fetchAgentBootstrap(
   }
 }
 
+export function buildConnectUrl(code: string) {
+  const configured = process.env.NEXT_PUBLIC_CONNECT_BASE_URL?.replace(
+    /\/$/,
+    ""
+  )
+  if (configured) return `${configured}/${code}`
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}/connect/${code}`
+  }
+  return `/connect/${code}`
+}
+
 export function tryOpenAgentDeepLink(deepLink: string) {
   if (typeof window === "undefined") return
   window.location.href = deepLink

@@ -65,7 +65,7 @@ const LINK_KINDS: { value: EnrollmentLinkKind; label: string; hint: string }[] =
 export default function LinksView() {
   const queryClient = useQueryClient()
   const [filter, setFilter] = useState<LinkFilter>("all")
-  const [linkKind, setLinkKind] = useState<EnrollmentLinkKind>("AGENT")
+  const [linkKind, setLinkKind] = useState<EnrollmentLinkKind>("BOTH")
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [expandedLinkId, setExpandedLinkId] = useState<string | null>(null)
 

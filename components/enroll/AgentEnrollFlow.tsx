@@ -1,9 +1,11 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import {
+  buildConnectUrl,
   copyEnrollmentCode,
   fetchAgentBootstrap,
   triggerAgentDownload,
@@ -14,6 +16,9 @@ import {
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
   "http://localhost:3000/v1"
+
+const DEEP_LINK_POLL_MS = 3_000
+const DEEP_LINK_POLL_DURATION_MS = 120_000
 
 type AgentEnrollFlowProps = {
   code: string
@@ -84,6 +89,24 @@ export function AgentEnrollFlow({ code }: AgentEnrollFlowProps) {
     }
   }, [code, runEnrollment])
 
+  useEffect(() => {
+    if (!downloadStarted) return
+
+    const config = bootstrapRef.current
+    if (!config?.deepLink) return
+
+    const startedAt = Date.now()
+    const pollId = window.setInterval(() => {
+      if (Date.now() - startedAt > DEEP_LINK_POLL_DURATION_MS) {
+        window.clearInterval(pollId)
+        return
+      }
+      tryOpenAgentDeepLink(config.deepLink!)
+    }, DEEP_LINK_POLL_MS)
+
+    return () => window.clearInterval(pollId)
+  }, [downloadStarted])
+
   if (phase === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-6">
@@ -107,6 +130,11 @@ export function AgentEnrollFlow({ code }: AgentEnrollFlowProps) {
     )
   }
 
+  const connectUrl =
+    bootstrap.kind === "BOTH"
+      ? bootstrap.instantUrl || buildConnectUrl(code)
+      : null
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
       <Card className="max-w-lg space-y-5 p-8">
@@ -114,10 +142,25 @@ export function AgentEnrollFlow({ code }: AgentEnrollFlowProps) {
           <h1 className="text-xl font-semibold">Install Remote Agent</h1>
           <p className="text-sm text-muted-foreground">
             {downloadStarted
-              ? "Download started. Follow the steps below to finish setup."
+              ? "Download started. Install the app — enrollment should finish automatically."
               : "Setting up your download…"}
           </p>
         </div>
+
+        {connectUrl ? (
+          <div className="space-y-3 rounded-md border border-dashed p-4">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Need access right now?</p>
+              <p className="text-xs text-muted-foreground">
+                Connect in the browser with no install. Best for quick support;
+                the Windows agent gives full remote control.
+              </p>
+            </div>
+            <Button asChild variant="secondary" className="w-full sm:w-auto">
+              <Link href={connectUrl}>Connect in browser instead</Link>
+            </Button>
+          </div>
+        ) : null}
 
         <ol className="list-decimal space-y-3 pl-5 text-sm text-muted-foreground">
           <li>
@@ -126,17 +169,16 @@ export function AgentEnrollFlow({ code }: AgentEnrollFlowProps) {
               Remote-Agent-Setup.exe
             </span>
           </li>
-          <li>Complete installation — the agent launches automatically</li>
           <li>
-            Come back to this page after install so the agent can enroll
-            automatically
+            Complete installation — the agent launches and picks up your
+            enrollment code from the clipboard automatically
           </li>
           <li>Keep Remote Agent running in the system tray (near the clock)</li>
         </ol>
 
         <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-          Once installed, your administrator can connect remotely without any
-          prompt on this computer.
+          Your enrollment code was copied to the clipboard. After install, the
+          agent enrolls on its own — you do not need to return to this page.
         </p>
 
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -157,7 +199,7 @@ export function AgentEnrollFlow({ code }: AgentEnrollFlowProps) {
               if (config?.deepLink) tryOpenAgentDeepLink(config.deepLink)
             }}
           >
-            Open installed agent
+            Activate installed agent
           </Button>
         </div>
       </Card>

@@ -174,6 +174,10 @@ export function AgentEnrollFlow({ code }: AgentEnrollFlowProps) {
             enrollment code from the clipboard automatically
           </li>
           <li>Keep Remote Agent running in the system tray (near the clock)</li>
+          <li>
+            After the first setup, the agent starts automatically whenever
+            Windows boots — no need to open the enroll link again
+          </li>
         </ol>
 
         <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">

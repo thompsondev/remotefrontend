@@ -13,8 +13,9 @@ type RemoteViewerProps = {
   onDisconnect?: () => void
 }
 
-const VIEWER_READY_RETRY_MS = 4_000
-const OFFER_IGNORE_WINDOW_MS = 1_500
+const VIEWER_READY_RETRY_MS = 15_000
+const OFFER_IGNORE_WINDOW_MS = 2_000
+const ICE_FAILED_RETRY_MS = 5_000
 
 export function RemoteViewer({
   sessionId,
@@ -28,6 +29,7 @@ export function RemoteViewer({
   const streamConnectedRef = useRef(false)
   const lastOfferAtRef = useRef(0)
   const viewerReadyRetryRef = useRef<number | null>(null)
+  const iceFailedRetryRef = useRef<number | null>(null)
   const [connected, setConnected] = useState(false)
   const [status, setStatus] = useState("Connecting...")
 
@@ -54,7 +56,7 @@ export function RemoteViewer({
 
       socket = io(`${getWsUrl()}/signaling`, {
         auth: { role: "admin", token },
-        transports: ["websocket"],
+        transports: ["polling", "websocket"],
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
@@ -71,6 +73,10 @@ export function RemoteViewer({
             streamConnectedRef.current = true
             setConnected(true)
             setStatus("Connected")
+            if (viewerReadyRetryRef.current) {
+              clearTimeout(viewerReadyRetryRef.current)
+              viewerReadyRetryRef.current = null
+            }
           }
         }
 
@@ -111,7 +117,14 @@ export function RemoteViewer({
             streamConnectedRef.current = false
             setConnected(false)
             setStatus("Connection lost — retrying...")
-            socket.emit("viewer_ready", { sessionId })
+            if (iceFailedRetryRef.current) {
+              clearTimeout(iceFailedRetryRef.current)
+            }
+            iceFailedRetryRef.current = window.setTimeout(() => {
+              if (!streamConnectedRef.current && socket?.connected) {
+                socket.emit("viewer_ready", { sessionId })
+              }
+            }, ICE_FAILED_RETRY_MS)
           }
         }
 
@@ -174,6 +187,14 @@ export function RemoteViewer({
           if (data.from !== "device" || !activePc) return
           if (data.sessionId && data.sessionId !== sessionId) return
 
+          const ice = activePc.iceConnectionState
+          if (
+            streamConnectedRef.current &&
+            (ice === "connected" || ice === "completed")
+          ) {
+            return
+          }
+
           const now = Date.now()
           if (now - lastOfferAtRef.current < OFFER_IGNORE_WINDOW_MS) {
             return
@@ -187,7 +208,7 @@ export function RemoteViewer({
           if (
             activePc.signalingState === "closed" ||
             activePc.connectionState === "closed" ||
-            activePc.iceConnectionState === "failed"
+            ice === "failed"
           ) {
             activePc = setupPeerConnection()
             streamConnectedRef.current = false
@@ -273,6 +294,9 @@ export function RemoteViewer({
       cancelled = true
       if (viewerReadyRetryRef.current) {
         clearTimeout(viewerReadyRetryRef.current)
+      }
+      if (iceFailedRetryRef.current) {
+        clearTimeout(iceFailedRetryRef.current)
       }
       socket?.disconnect()
       activePc?.close()

@@ -49,7 +49,7 @@ export default function SessionView() {
 
     const socket = io(`${getWsUrl()}/signaling`, {
       auth: { role: "admin", token },
-      transports: ["websocket"],
+      transports: ["polling", "websocket"],
     })
     socketRef.current = socket
     socket.emit("join_session", { sessionId })

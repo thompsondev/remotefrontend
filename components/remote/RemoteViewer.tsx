@@ -56,7 +56,9 @@ export function RemoteViewer({
 
       socket = io(`${getWsUrl()}/signaling`, {
         auth: { role: "admin", token },
-        transports: ["polling", "websocket"],
+        transports: ["websocket", "polling"],
+        upgrade: true,
+        rememberUpgrade: true,
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,

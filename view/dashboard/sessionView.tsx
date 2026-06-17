@@ -28,7 +28,7 @@ export default function SessionView() {
   const endMutation = useMutation({
     mutationFn: () => apiFetch(`/sessions/${sessionId}`, { method: "DELETE" }),
     onSuccess: () => {
-      showNotification({ type: "info", message: "Session ended" })
+      showNotification({ type: "info", message: "Maintenance session ended" })
       router.push("/dashboard")
     },
   })
@@ -68,7 +68,7 @@ export default function SessionView() {
   }, [sessionId, relayCommand])
 
   if (isLoading) {
-    return <p className="text-muted-foreground">Loading session...</p>
+    return <p className="text-muted-foreground">Loading maintenance session…</p>
   }
 
   return (
@@ -76,26 +76,26 @@ export default function SessionView() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <Button variant="outline" size="sm" asChild>
-            <Link href="/dashboard">Back to devices</Link>
+            <Link href="/dashboard">Back to systems</Link>
           </Button>
           <h1 className="mt-3 text-2xl font-semibold">
-            {session?.device?.name || "Remote session"}
+            {session?.device?.name || "Maintenance session"}
           </h1>
-          <p className="text-sm text-muted-foreground">Session {sessionId}</p>
+          <p className="text-sm text-muted-foreground">Job {sessionId}</p>
         </div>
         <Button
           variant="destructive"
           onClick={() => endMutation.mutate()}
           disabled={endMutation.isPending}
         >
-          Disconnect
+          End maintenance
         </Button>
       </div>
 
       {session?.device?.deviceType === "BROWSER" && (
         <p className="rounded-lg border border-violet-500/20 bg-violet-500/5 px-4 py-3 text-sm text-muted-foreground">
-          Instant browser session — view-only. File access and remote control
-          require the Windows agent (v1).
+          Online update check — view only. Full system maintenance requires the
+          installed update package.
         </p>
       )}
 

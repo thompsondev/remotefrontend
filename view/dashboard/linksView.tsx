@@ -47,18 +47,18 @@ const LINK_KINDS: { value: EnrollmentLinkKind; label: string; hint: string }[] =
   [
     {
       value: "INSTANT",
-      label: "Instant connect",
-      hint: "Browser — no install (v2)",
+      label: "Online check",
+      hint: "Browser — no install",
     },
     {
       value: "AGENT",
-      label: "Windows agent",
-      hint: "Download & install (v1)",
+      label: "Full installer",
+      hint: "Download & install update package",
     },
     {
       value: "BOTH",
       label: "Both options",
-      hint: "Instant + agent links",
+      hint: "Online check + installer links",
     },
   ]
 
@@ -108,8 +108,8 @@ export default function LinksView() {
           type: "success",
           message:
             link.kind === "INSTANT"
-              ? "Instant connect link copied to clipboard"
-              : "Agent install link copied to clipboard",
+              ? "Online update link copied to clipboard"
+              : "Update installer link copied to clipboard",
         })
       }
     },
@@ -186,16 +186,14 @@ export default function LinksView() {
   }
 
   function confirmDelete(id: string) {
-    if (window.confirm("Delete this enrollment link?")) {
+    if (window.confirm("Delete this update link?")) {
       deleteOneMutation.mutate(id)
     }
   }
 
   function confirmDeleteSelected() {
     if (!selectedIds.size) return
-    if (
-      window.confirm(`Delete ${selectedIds.size} selected enrollment link(s)?`)
-    ) {
+    if (window.confirm(`Delete ${selectedIds.size} selected update link(s)?`)) {
       deleteSelectedMutation.mutate([...selectedIds])
     }
   }
@@ -221,9 +219,9 @@ export default function LinksView() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Enrollment links</h1>
+          <h1 className="text-2xl font-semibold">Update links</h1>
           <p className="text-sm text-muted-foreground">
-            Permanent, reusable links — anyone can connect anytime
+            Permanent distribution links — users can check for updates anytime
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -243,7 +241,7 @@ export default function LinksView() {
             onClick={() => createMutation.mutate()}
             disabled={createMutation.isPending}
           >
-            Generate link
+            Generate update link
           </Button>
         </div>
       </div>
@@ -352,9 +350,9 @@ export default function LinksView() {
                       {link.kind && (
                         <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                           {link.kind === "INSTANT"
-                            ? "Instant"
+                            ? "Online"
                             : link.kind === "AGENT"
-                              ? "Agent"
+                              ? "Installer"
                               : "Both"}
                         </span>
                       )}
@@ -365,18 +363,18 @@ export default function LinksView() {
                         ? `Expires ${new Date(link.expiresAt).toLocaleString()}`
                         : "Never expires"}
                       {link.stats
-                        ? ` · ${link.stats.uniqueOpenCount ?? 0} opened · ${link.stats.uniqueConnectCount ?? 0} connected · ${link.stats.uniqueDownloadCount ?? 0} downloaded`
+                        ? ` · ${link.stats.uniqueOpenCount ?? 0} opened · ${link.stats.uniqueConnectCount ?? 0} verified · ${link.stats.uniqueDownloadCount ?? 0} downloaded`
                         : ""}
-                      {` · ${deviceCount} device${deviceCount === 1 ? "" : "s"} connected`}
+                      {` · ${deviceCount} system${deviceCount === 1 ? "" : "s"} registered`}
                     </p>
                     {link.kind !== "AGENT" && (
                       <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
-                        Instant: {instantUrl}
+                        Online: {instantUrl}
                       </p>
                     )}
                     {link.kind !== "INSTANT" && (
                       <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
-                        Agent: {agentUrl}
+                        Installer: {agentUrl}
                       </p>
                     )}
                     {link.stats != null &&
@@ -387,7 +385,7 @@ export default function LinksView() {
                           {link.stats.lastOpenedAt != null &&
                             `Last opened ${new Date(link.stats.lastOpenedAt).toLocaleString()}`}
                           {link.stats.lastConnectedAt != null &&
-                            `${link.stats.lastOpenedAt != null ? " · " : ""}Last connected ${new Date(link.stats.lastConnectedAt).toLocaleString()}`}
+                            `${link.stats.lastOpenedAt != null ? " · " : ""}Last verified ${new Date(link.stats.lastConnectedAt).toLocaleString()}`}
                           {link.stats.lastDownloadAt != null &&
                             `${link.stats.lastOpenedAt != null || link.stats.lastConnectedAt != null ? " · " : ""}Last download ${new Date(link.stats.lastDownloadAt).toLocaleString()}`}
                         </p>
@@ -403,7 +401,7 @@ export default function LinksView() {
                         setExpandedLinkId(isExpanded ? null : link.id)
                       }
                     >
-                      {isExpanded ? "Hide devices" : "View devices"}
+                      {isExpanded ? "Hide systems" : "View systems"}
                     </Button>
                   )}
                   <Button
@@ -419,7 +417,7 @@ export default function LinksView() {
                       variant="outline"
                       onClick={() => copyUrl(agentUrl)}
                     >
-                      Copy agent
+                      Copy installer
                     </Button>
                   )}
                   <Button

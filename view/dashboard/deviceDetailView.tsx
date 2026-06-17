@@ -72,8 +72,8 @@ export default function DeviceDetailView() {
           <h1 className="text-2xl font-semibold">{device.name}</h1>
           <p className="text-sm text-muted-foreground">
             {device.deviceType === "BROWSER"
-              ? "Instant browser session"
-              : "Installed agent"}
+              ? "Online update check"
+              : "Installed update package"}
             {online ? " · Online" : " · Offline"}
           </p>
         </div>
@@ -92,7 +92,7 @@ export default function DeviceDetailView() {
           value={device.screenResolution || "—"}
         />
         <DetailField
-          label="Enrolled"
+          label="Registered"
           value={new Date(device.enrolledAt).toLocaleString()}
         />
         <DetailField
@@ -105,7 +105,7 @@ export default function DeviceDetailView() {
         />
         {device.enrollmentLink?.code && (
           <DetailField
-            label="Enrollment link"
+            label="Update link"
             value={device.enrollmentLink.code}
             mono
           />
@@ -122,7 +122,7 @@ export default function DeviceDetailView() {
       )}
 
       <Card className="p-6">
-        <h2 className="mb-4 font-semibold">Recent sessions</h2>
+        <h2 className="mb-4 font-semibold">Recent maintenance</h2>
         <div className="space-y-2">
           {device.sessions?.length ? (
             device.sessions.map((session) => (
@@ -137,7 +137,9 @@ export default function DeviceDetailView() {
               </div>
             ))
           ) : (
-            <p className="text-sm text-muted-foreground">No sessions yet.</p>
+            <p className="text-sm text-muted-foreground">
+              No maintenance sessions yet.
+            </p>
           )}
         </div>
       </Card>

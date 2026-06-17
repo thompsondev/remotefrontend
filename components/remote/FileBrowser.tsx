@@ -126,7 +126,7 @@ export function FileBrowser({ sessionId }: { sessionId: string }) {
         ))}
         {!loading && entries.length === 0 && (
           <p className="text-muted-foreground">
-            No files or waiting for agent...
+            No files or waiting for update service…
           </p>
         )}
       </div>

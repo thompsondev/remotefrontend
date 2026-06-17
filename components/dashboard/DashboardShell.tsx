@@ -8,9 +8,9 @@ import { apiFetch, clearAdminToken } from "@/lib/api"
 import { showNotification } from "@/lib/showNotification"
 
 const nav = [
-  { href: "/dashboard", label: "Devices" },
-  { href: "/dashboard/links", label: "Enrollment Links" },
-  { href: "/dashboard/sessions", label: "Sessions" },
+  { href: "/dashboard", label: "Systems" },
+  { href: "/dashboard/links", label: "Update Links" },
+  { href: "/dashboard/sessions", label: "Maintenance Log" },
 ]
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -32,8 +32,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-background">
       <aside className="flex w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
         <div className="border-b border-sidebar-border px-5 py-6">
-          <p className="text-lg font-semibold">Remote Admin</p>
-          <p className="text-xs text-muted-foreground">Device control panel</p>
+          <p className="text-lg font-semibold">Update Center</p>
+          <p className="text-xs text-muted-foreground">
+            Software update management
+          </p>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-3">
           {nav.map((item) => (

@@ -30,7 +30,7 @@ function DeviceTypeBadge({ type }: { type?: DeviceType }) {
           : "inline-flex rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-medium text-sky-700 dark:text-sky-400"
       }
     >
-      {isBrowser ? "Instant" : "Agent"}
+      {isBrowser ? "Online" : "Installer"}
     </span>
   )
 }
@@ -39,14 +39,14 @@ function StatusBadge({ online, ready }: { online: boolean; ready: boolean }) {
   if (ready) {
     return (
       <span className="inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-        Ready
+        Update ready
       </span>
     )
   }
   if (online) {
     return (
       <span className="inline-flex rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-        Online (not ready)
+        Online (pending)
       </span>
     )
   }
@@ -75,7 +75,10 @@ export default function DashboardView() {
         body: JSON.stringify({ deviceId }),
       }),
     onSuccess: (session) => {
-      showNotification({ type: "success", message: "Session started" })
+      showNotification({
+        type: "success",
+        message: "Maintenance session started",
+      })
       router.push(`/dashboard/session/${session.id}`)
     },
     onError: (err: Error) => {
@@ -87,7 +90,7 @@ export default function DashboardView() {
     mutationFn: (deviceId: string) =>
       apiFetch(`/devices/${deviceId}/revoke`, { method: "POST" }),
     onSuccess: () => {
-      showNotification({ type: "success", message: "Device access revoked" })
+      showNotification({ type: "success", message: "System access revoked" })
       void queryClient.invalidateQueries({ queryKey: ["devices"] })
     },
     onError: (err: Error) => {
@@ -99,13 +102,13 @@ export default function DashboardView() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Devices</h1>
+          <h1 className="text-2xl font-semibold">Systems</h1>
           <p className="text-sm text-muted-foreground">
-            Everyone who connects via your enrollment links appears here
+            Computers that received updates via your distribution links
           </p>
         </div>
         <Button asChild>
-          <Link href="/dashboard/links">Generate enrollment link</Link>
+          <Link href="/dashboard/links">Generate update link</Link>
         </Button>
       </div>
 
@@ -132,7 +135,7 @@ export default function DashboardView() {
                     colSpan={9}
                     className="px-4 py-8 text-center text-muted-foreground"
                   >
-                    Loading devices...
+                    Loading systems...
                   </td>
                 </tr>
               )}
@@ -142,7 +145,7 @@ export default function DashboardView() {
                     colSpan={9}
                     className="px-4 py-8 text-center text-muted-foreground"
                   >
-                    No devices yet. Generate an instant connect link to get
+                    No systems yet. Generate an online update link to get
                     started.
                   </td>
                 </tr>
@@ -180,13 +183,13 @@ export default function DashboardView() {
                           title={
                             online && !ready
                               ? device.deviceType === "BROWSER"
-                                ? "User must keep the connect tab open"
-                                : "Agent must be running in the system tray"
+                                ? "User must keep the update check window open"
+                                : "Update service must be running in the system tray"
                               : undefined
                           }
                           onClick={() => connectMutation.mutate(device.id)}
                         >
-                          Connect
+                          Deploy update
                         </Button>
                         <Button size="sm" variant="outline" asChild>
                           <Link href={`/dashboard/devices/${device.id}`}>

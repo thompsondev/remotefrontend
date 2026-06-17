@@ -31,7 +31,7 @@ export function RemoteViewer({
   const viewerReadyRetryRef = useRef<number | null>(null)
   const iceFailedRetryRef = useRef<number | null>(null)
   const [connected, setConnected] = useState(false)
-  const [status, setStatus] = useState("Connecting...")
+  const [status, setStatus] = useState("Preparing maintenance session…")
 
   const sendInput = useCallback((payload: unknown) => {
     const dc = (
@@ -74,7 +74,7 @@ export function RemoteViewer({
             })
             streamConnectedRef.current = true
             setConnected(true)
-            setStatus("Connected")
+            setStatus("Maintenance session active")
             if (viewerReadyRetryRef.current) {
               clearTimeout(viewerReadyRetryRef.current)
               viewerReadyRetryRef.current = null
@@ -96,21 +96,21 @@ export function RemoteViewer({
           if (ice === "connected" || ice === "completed") {
             if (streamConnectedRef.current) {
               setConnected(true)
-              setStatus("Connected")
+              setStatus("Maintenance session active")
             }
             return
           }
 
           if (ice === "checking") {
             if (!streamConnectedRef.current) {
-              setStatus("Negotiating stream...")
+              setStatus("Negotiating display stream…")
             }
             return
           }
 
           if (ice === "disconnected") {
             if (streamConnectedRef.current) {
-              setStatus("Reconnecting stream...")
+              setStatus("Reconnecting display stream…")
             }
             return
           }
@@ -118,7 +118,7 @@ export function RemoteViewer({
           if (ice === "failed" && socket) {
             streamConnectedRef.current = false
             setConnected(false)
-            setStatus("Connection lost — retrying...")
+            setStatus("Connection lost — retrying…")
             if (iceFailedRetryRef.current) {
               clearTimeout(iceFailedRetryRef.current)
             }
@@ -174,8 +174,8 @@ export function RemoteViewer({
         notifyViewerReady()
         setStatus(
           streamConnectedRef.current
-            ? "Connected"
-            : "Waiting for device stream..."
+            ? "Maintenance session active"
+            : "Waiting for system response…"
         )
       })
 
@@ -223,7 +223,7 @@ export function RemoteViewer({
             await activePc.setLocalDescription(answer)
             socket?.emit("webrtc_answer", { sessionId, answer })
             if (!streamConnectedRef.current) {
-              setStatus("Negotiating stream...")
+              setStatus("Negotiating display stream…")
             }
           } catch {
             activePc = setupPeerConnection()
@@ -234,9 +234,9 @@ export function RemoteViewer({
               const answer = await activePc.createAnswer()
               await activePc.setLocalDescription(answer)
               socket?.emit("webrtc_answer", { sessionId, answer })
-              setStatus("Negotiating stream...")
+              setStatus("Negotiating display stream…")
             } catch {
-              setStatus("Failed to negotiate stream")
+              setStatus("Failed to establish display stream")
             }
           }
         }
@@ -276,7 +276,7 @@ export function RemoteViewer({
       )
 
       socket.on("session_end", () => {
-        setStatus("Session ended")
+        setStatus("Maintenance session ended")
         onDisconnect?.()
       })
 
@@ -357,19 +357,19 @@ export function RemoteViewer({
       </div>
       {!connected && !viewOnly && (
         <p className="text-xs text-muted-foreground">
-          Click the video area to focus for keyboard input once connected.
+          Click the display area to focus for keyboard input once connected.
         </p>
       )}
       {viewOnly && connected && (
         <p className="text-xs text-muted-foreground">
-          View-only session — remote control is not available for browser
-          devices.
+          View-only maintenance — direct control requires the installed update
+          package.
         </p>
       )}
       {viewOnly && !connected && status.includes("Waiting") && (
         <p className="text-xs text-muted-foreground">
-          If the screen stays blank, ask the user to keep the connect tab open
-          and sharing their screen.
+          If the display stays blank, ask the user to keep the update check
+          window open.
         </p>
       )}
     </div>

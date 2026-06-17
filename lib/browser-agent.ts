@@ -51,7 +51,7 @@ export function clearBrowserCredentials(code: string) {
 export function detectBrowserInfo() {
   if (typeof navigator === "undefined") {
     return {
-      name: "Browser Session",
+      name: "Online Update Check",
       hostname: "browser",
       os: "Web Browser",
       browser: "Web Browser",
@@ -74,7 +74,7 @@ export function detectBrowserInfo() {
   else if (ua.includes("Safari/") && !ua.includes("Chrome/")) browser = "Safari"
 
   return {
-    name: `${browser} Session`,
+    name: `${browser} Online Check`,
     hostname: window.location.hostname || "browser",
     os: platform,
     browser,
@@ -94,7 +94,7 @@ export async function enrollBrowserDevice(code: string) {
   })
   if (!res.ok) {
     const text = await res.text()
-    let message = text || "Failed to enroll browser session"
+    let message = text || "Failed to register online update check"
     try {
       const body = JSON.parse(text) as {
         message?: string | string[]
@@ -106,7 +106,7 @@ export async function enrollBrowserDevice(code: string) {
 
       if (res.status === 404 && message.includes("enroll-browser")) {
         message =
-          "Instant connect is not enabled on the server yet. Ask your administrator to deploy the latest backend (remotehick)."
+          "Online update checks are not enabled on the server yet. Ask your administrator to deploy the latest backend."
       }
     } catch {
       /* use raw text */
@@ -136,7 +136,7 @@ export async function enrollBrowserDevice(code: string) {
     deviceToken: data.deviceToken,
     device: data.device ?? {
       id: data.deviceId,
-      name: "Browser Session",
+      name: "Online Update Check",
       hostname: "browser",
       os: "Web Browser",
     },

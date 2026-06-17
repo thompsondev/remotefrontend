@@ -15,9 +15,9 @@ export default function SessionsView() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Sessions</h1>
+        <h1 className="text-2xl font-semibold">Maintenance log</h1>
         <p className="text-sm text-muted-foreground">
-          Remote connection history
+          History of update and maintenance sessions
         </p>
       </div>
 
@@ -26,7 +26,9 @@ export default function SessionsView() {
           <p className="p-6 text-sm text-muted-foreground">Loading...</p>
         )}
         {!isLoading && sessions.length === 0 && (
-          <p className="p-6 text-sm text-muted-foreground">No sessions yet.</p>
+          <p className="p-6 text-sm text-muted-foreground">
+            No maintenance sessions yet.
+          </p>
         )}
         {sessions.map((session) => (
           <div

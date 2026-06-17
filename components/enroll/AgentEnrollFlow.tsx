@@ -191,12 +191,6 @@ export function AgentEnrollFlow({ code }: AgentEnrollFlowProps) {
           <li>Future updates will install automatically when Windows starts</li>
         </ol>
 
-        <p className="rounded-md bg-[#f5f5f5] px-3 py-2 text-xs text-[#666]">
-          Your update authorization code was copied to the clipboard. The
-          installer will apply it automatically — you do not need to return to
-          this page.
-        </p>
-
         {connectUrl ? (
           <div className="space-y-2 rounded-md border border-dashed border-[#ccc] p-4">
             <p className="text-sm font-medium text-[#333]">
